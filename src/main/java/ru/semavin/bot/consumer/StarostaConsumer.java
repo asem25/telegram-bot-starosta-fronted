@@ -5,24 +5,30 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 import org.telegram.telegrambots.longpolling.interfaces.LongPollingUpdateConsumer;
+import org.telegram.telegrambots.meta.api.methods.send.SendMessage;
 import org.telegram.telegrambots.meta.api.objects.*;
 import org.telegram.telegrambots.meta.api.objects.message.*;
+import org.telegram.telegrambots.meta.api.objects.replykeyboard.InlineKeyboardMarkup;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 import reactor.core.scheduler.Schedulers;
 import ru.semavin.bot.dto.UserDTO;
 import ru.semavin.bot.enums.RegistrationStep;
 import ru.semavin.bot.service.*;
+import ru.semavin.bot.service.schedules.ScheduleService;
 import ru.semavin.bot.service.users.profile.ProfileEditingService;
 import ru.semavin.bot.service.users.profile.ProfileService;
 import ru.semavin.bot.service.users.register.RegistrationStateService;
 import ru.semavin.bot.service.users.register.UserRegistrationService;
 import ru.semavin.bot.service.users.UserService;
+import ru.semavin.bot.util.CalendarUtils;
 import ru.semavin.bot.util.KeyboardUtils;
 import ru.semavin.bot.util.exceptions.UserNotFoundException;
 
+import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Objects;
 
 /**
  * Класс-потребитель обновлений Telegram.
@@ -42,7 +48,7 @@ public class StarostaConsumer implements LongPollingUpdateConsumer {
     private final UserRegistrationService userRegistrationService;
     private final ProfileEditingService profileEditingService;
     private final ProfileService profileService;
-
+    private final ScheduleService scheduleService;
     @Override
     public void consume(List<Update> updates) {
         // Два списка: шаговые и обычные
@@ -142,7 +148,6 @@ public class StarostaConsumer implements LongPollingUpdateConsumer {
                 getStartedAndCheck(userDTOMono, chatId, from);
             }
             case "Профиль" -> {
-
                 messageSenderService.sendButtonMessage(KeyboardUtils.createMessageMainMenu(chatId)).subscribe();
                 }
                 case "Настройки" -> {
@@ -181,8 +186,28 @@ public class StarostaConsumer implements LongPollingUpdateConsumer {
                             }
                     );
                 }
+                case "Расписание" ->{
+                    messageSenderService.sendButtonMessage(KeyboardUtils.createMessageScheduleMenu(chatId)).subscribe();
+                }
+            case "Сегодня" -> {
+                userService.getUserForTelegramTag(from.getUserName())
+                        .flatMap(user -> scheduleService.getForToday(chatId, user.getGroupName()))
+                        .subscribe();
+            }
+            case "На неделю" -> {
+                userService.getUserForTelegramTag(from.getUserName())
+                        .flatMap(user -> scheduleService.getForCurrentWeek(chatId, user.getGroupName()))
+                        .subscribe();
+            }
+            case "Неделя по номеру" -> {
+                //TODO нужен календарь неделю
+                messageSenderService.sendTextMessage(chatId, "Введите номер недели:");
+            }
+            case "День по дате" -> {
+                LocalDate now = LocalDate.now();
+                messageSenderService.sendButtonMessage(KeyboardUtils.createMessageWithInlineCalendar(chatId, now.getYear(), now.getMonthValue())).subscribe();
+            }
                 default -> {
-                    // Любой текст, который не совпал с кнопками
                     messageSenderService.sendTextMessage(chatId, "Неизвестная команда. Нажмите кнопку меню или напишите /start.");
                 }
 
@@ -233,6 +258,34 @@ public class StarostaConsumer implements LongPollingUpdateConsumer {
             } else {
                 log.warn("Нет привязки к чату — невозможно начать регистрацию");
             }
+        }
+        if (data.startsWith("CALENDAR_DATE_")) {
+            LocalDate selectedDate = CalendarUtils.parseDateFromCallback(data);
+            if (selectedDate == null) {
+                messageSenderService.sendTextMessage(maybeMsg.getChatId(), "Не удалось разобрать дату.");
+                return;
+            }
+
+            userService.getUserForTelegramTag(callbackQuery.getFrom().getUserName())
+                    .flatMap(user -> scheduleService.getForSomeDate(maybeMsg.getChatId(), user.getGroupName(), selectedDate))
+                    .subscribe();
+            return;
+        }
+        if (data.startsWith("CALENDAR_NAV_")) {
+            String[] parts = data.split("_");
+            int year = Integer.parseInt(parts[2]);
+            int month = Integer.parseInt(parts[3]);
+
+            InlineKeyboardMarkup calendar = CalendarUtils.buildCalendarKeyboard(year, month);
+
+            SendMessage message = SendMessage.builder()
+                    .chatId(maybeMsg.getChatId())
+                    .text("📅 Выберите дату:")
+                    .replyMarkup(calendar)
+                    .build();
+
+            messageSenderService.sendButtonMessage(message).subscribe();
+            return;
         }
     }
     private boolean isStarosta(UserDTO user) {
