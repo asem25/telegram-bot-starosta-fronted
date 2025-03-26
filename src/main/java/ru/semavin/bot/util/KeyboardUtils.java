@@ -100,8 +100,6 @@ public class KeyboardUtils {
                 .text("Оповещения")
                 .build());
 
-
-
         return ReplyKeyboardMarkup.builder()
                 .keyboard(List.of(row1, row2))
                 .resizeKeyboard(true)    // Автоматически подгоняет размер клавиатуры под экран
