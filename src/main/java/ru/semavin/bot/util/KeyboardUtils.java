@@ -109,6 +109,7 @@ public class KeyboardUtils {
     }
     public static ReplyKeyboardMarkup scheduleMainMenu(){
         KeyboardRow row1 = new KeyboardRow();
+
         row1.add(KeyboardButton.builder()
                 .text("Сегодня")
                 .build());
