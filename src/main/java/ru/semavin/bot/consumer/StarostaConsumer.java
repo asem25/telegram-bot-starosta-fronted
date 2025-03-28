@@ -190,13 +190,14 @@ public class StarostaConsumer implements LongPollingUpdateConsumer {
                     messageSenderService.sendButtonMessage(KeyboardUtils.createMessageScheduleMenu(chatId)).subscribe();
                 }
             case "Сегодня" -> {
+                LocalDate today = LocalDate.now();
                 userService.getUserForTelegramTag(from.getUserName())
-                        .flatMap(user -> scheduleService.getForToday(user.getGroupName()))
+                        .flatMap(user -> scheduleService.getScheduleSomeDate(user.getGroupName(), today))
                         .flatMap(schedule -> messageSenderService.sendButtonMessage(
                                 SendMessage.builder()
                                         .chatId(chatId)
                                         .text(schedule)
-                                        .replyMarkup(KeyboardUtils.createMarkupWithTomorrow())
+                                        .replyMarkup(KeyboardUtils.createMarkupWithTomorrow(today))
                                         .build()
                         ))
                         .subscribe();
@@ -350,7 +351,7 @@ public class StarostaConsumer implements LongPollingUpdateConsumer {
 
             return;
         }
-        if (data.startsWith("TOMORROW_")){
+        if (data.startsWith("TOMORROW_")) {
             LocalDate tomorrow = LocalDate.parse(data.replace("TOMORROW_", ""));
 
             userService.getUserForTelegramTag(callbackQuery.getFrom().getUserName())
@@ -361,27 +362,33 @@ public class StarostaConsumer implements LongPollingUpdateConsumer {
                                             maybeMsg.getChatId().toString(),
                                             maybeMsg.getMessageId(),
                                             scheduleText,
-                                            KeyboardUtils.createMarkupWithTomorrow())
+                                            KeyboardUtils.createMarkupWithBackToToday(tomorrow.minusDays(1))
                                     )
                             )
+                    )
                     .subscribe();
+
+            return;
         }
-        //TODO Завтра/обратно
-        if (data.startsWith("BACK_TO_TODAY")){
-            LocalDate tomorrow = LocalDate.parse(data.replace("BACK_TO_TODAY_", ""));
+
+        if (data.startsWith("BACK_TO_TODAY_")) {
+            LocalDate today = LocalDate.parse(data.replace("BACK_TO_TODAY_", ""));
 
             userService.getUserForTelegramTag(callbackQuery.getFrom().getUserName())
-                    .flatMap(user -> scheduleService.getScheduleSomeDate(user.getGroupName(), tomorrow))
+                    .flatMap(user -> scheduleService.getScheduleSomeDate(user.getGroupName(), today))
                     .flatMap(scheduleText ->
                             messageSenderService.editMessageText(
                                     KeyboardUtils.createEditMessage(
                                             maybeMsg.getChatId().toString(),
                                             maybeMsg.getMessageId(),
                                             scheduleText,
-                                            KeyboardUtils.createMarkupWithTomorrow())
+                                            KeyboardUtils.createMarkupWithTomorrow(today)
+                                    )
                             )
                     )
                     .subscribe();
+
+            return;
         }
     }
     private boolean isStarosta(UserDTO user) {

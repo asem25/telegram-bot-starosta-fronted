@@ -293,24 +293,22 @@ public class KeyboardUtils {
 
         return InlineKeyboardMarkup.builder().keyboard(List.of(row)).build();
     }
-    public static InlineKeyboardMarkup createMarkupWithTomorrow(){
-        LocalDate today = LocalDate.now();
+    public static InlineKeyboardMarkup createMarkupWithTomorrow(LocalDate currentDate) {
         InlineKeyboardRow row = new InlineKeyboardRow(InlineKeyboardButton.builder()
-                .text("Завтра")
-                .callbackData("TOMORROW_" + today.plusDays(1))
-                .build()
-        );
+                .text("Завтра ➡️")
+                .callbackData("TOMORROW_" + currentDate.plusDays(1))
+                .build());
 
         return InlineKeyboardMarkup.builder().keyboard(List.of(row)).build();
     }
-    public static InlineKeyboardMarkup createMarkupWithBackToToday(){
-        LocalDate today = LocalDate.now();
+
+    public static InlineKeyboardMarkup createMarkupWithBackToToday(LocalDate todayDate) {
         InlineKeyboardRow row = new InlineKeyboardRow(InlineKeyboardButton.builder()
-                .text("Завтра")
-                .callbackData("BACK_TO_TODAY_" + today)
-                .build()
-        );
+                .text("⬅️ Вернуться к текущему дню")
+                .callbackData("BACK_TO_TODAY_" + todayDate)
+                .build());
 
         return InlineKeyboardMarkup.builder().keyboard(List.of(row)).build();
     }
+
 }
