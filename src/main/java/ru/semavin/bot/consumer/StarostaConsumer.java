@@ -2,7 +2,6 @@ package ru.semavin.bot.consumer;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 import org.telegram.telegrambots.longpolling.interfaces.LongPollingUpdateConsumer;
 import org.telegram.telegrambots.meta.api.methods.send.SendMessage;
@@ -25,10 +24,10 @@ import ru.semavin.bot.util.CalendarUtils;
 import ru.semavin.bot.util.KeyboardUtils;
 import ru.semavin.bot.util.exceptions.UserNotFoundException;
 
+import java.time.DayOfWeek;
 import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Objects;
 
 /**
  * Класс-потребитель обновлений Telegram.
@@ -122,7 +121,7 @@ public class StarostaConsumer implements LongPollingUpdateConsumer {
      *
      * @param message объект Message, содержащий информацию о сообщении.
      */
-    //TODO реализация меню для старосты
+
     private void handleMessage(Message message) {
         String text = message.getText();
         Long chatId = message.getChatId();
@@ -164,6 +163,7 @@ public class StarostaConsumer implements LongPollingUpdateConsumer {
                     profileEditingService.startEditingProfile(chatId, from.getUserName());
                 }
                 case "Назад" -> {
+                    //TODO Сделать список user старост и проверять в списке старост, а не чекать в бд
                     userDTOMono.subscribe(
                             user -> {
                                 if (isStarosta(user)){
@@ -191,14 +191,29 @@ public class StarostaConsumer implements LongPollingUpdateConsumer {
                 }
             case "Сегодня" -> {
                 userService.getUserForTelegramTag(from.getUserName())
-                        .flatMap(user -> scheduleService.getForToday(chatId, user.getGroupName()))
+                        .flatMap(user -> scheduleService.getForToday(user.getGroupName()))
+                        .flatMap(schedule -> messageSenderService.sendButtonMessage(
+                                SendMessage.builder()
+                                        .chatId(chatId)
+                                        .text(schedule)
+                                        .replyMarkup(KeyboardUtils.createMarkupWithTomorrow())
+                                        .build()
+                        ))
                         .subscribe();
             }
             case "На неделю" -> {
-                userService.getUserForTelegramTag(from.getUserName())
-                        .flatMap(user -> scheduleService.getForCurrentWeek(chatId, user.getGroupName()))
-                        .subscribe();
+                LocalDate currentMonday = LocalDate.now().with(DayOfWeek.MONDAY);
+                List<LocalDate> weekDates = getWeekDates(currentMonday);
+
+                messageSenderService.sendButtonMessage(
+                        SendMessage.builder()
+                                .chatId(chatId)
+                                .text("📅 Выберите день недели:")
+                                .replyMarkup(KeyboardUtils.createScheduleWeekMarkup(weekDates, null))
+                                .build()
+                ).subscribe();
             }
+
             case "Неделя по номеру" -> {
                 //TODO нужен календарь неделю
                 messageSenderService.sendTextMessage(chatId, "Введите номер недели:");
@@ -265,9 +280,15 @@ public class StarostaConsumer implements LongPollingUpdateConsumer {
                 messageSenderService.sendTextMessage(maybeMsg.getChatId(), "Не удалось разобрать дату.");
                 return;
             }
-
             userService.getUserForTelegramTag(callbackQuery.getFrom().getUserName())
-                    .flatMap(user -> scheduleService.getForSomeDate(maybeMsg.getChatId(), user.getGroupName(), selectedDate))
+                    .flatMap(user -> scheduleService.getScheduleSomeDate(user.getGroupName(), selectedDate))
+                    .flatMap(text -> {
+                        return messageSenderService.editMessageText(KeyboardUtils.createEditMessage(
+                                maybeMsg.getChatId().toString(),
+                                maybeMsg.getMessageId(),
+                                text,
+                                KeyboardUtils.createMarkupWithBackToCalendarButton()));
+                    })
                     .subscribe();
             return;
         }
@@ -277,18 +298,101 @@ public class StarostaConsumer implements LongPollingUpdateConsumer {
             int month = Integer.parseInt(parts[3]);
 
             InlineKeyboardMarkup calendar = CalendarUtils.buildCalendarKeyboard(year, month);
-
-            SendMessage message = SendMessage.builder()
-                    .chatId(maybeMsg.getChatId())
-                    .text("📅 Выберите дату:")
-                    .replyMarkup(calendar)
-                    .build();
-
-            messageSenderService.sendButtonMessage(message).subscribe();
+            messageSenderService.editCalendarMarkup(maybeMsg.getChatId(), maybeMsg.getMessageId(), calendar).subscribe();
             return;
+        }
+        if ("CALENDAR_BACK".equals(data)) {
+            LocalDate now = LocalDate.now();
+            SendMessage message = KeyboardUtils.createMessageWithInlineCalendar(
+                    maybeMsg.getChatId(),
+                    now.getYear(),
+                    now.getMonthValue()
+            );
+            messageSenderService.editMessageText(KeyboardUtils.createEditMessage(
+                    maybeMsg.getChatId().toString(),
+                    maybeMsg.getMessageId(),
+                    message.getText(),
+                    (InlineKeyboardMarkup) message.getReplyMarkup()
+            )).subscribe();
+        }
+        if (data.startsWith("SHOW_DAY_")) {
+            LocalDate date = LocalDate.parse(data.replace("SHOW_DAY_", ""));
+
+            userService.getUserForTelegramTag(callbackQuery.getFrom().getUserName())
+                    .flatMap(user -> scheduleService.getScheduleSomeDate(user.getGroupName(), date))
+                    .flatMap(scheduleText ->
+                            messageSenderService.editMessageText(
+                                    KeyboardUtils.createEditMessage(
+                                            maybeMsg.getChatId().toString(),
+                                            maybeMsg.getMessageId(),
+                                            scheduleText,
+                                            KeyboardUtils.createBackToWeekMarkup(date.with(DayOfWeek.MONDAY))
+                                    )
+                            )
+                    )
+                    .subscribe();
+
+            return;
+        }
+
+        if (data.startsWith("BACK_WEEK_")) {
+            LocalDate weekStartDate = LocalDate.parse(data.replace("BACK_WEEK_", ""));
+            List<LocalDate> weekDates = getWeekDates(weekStartDate);
+
+            messageSenderService.editMessageText(
+                    KeyboardUtils.createEditMessage(
+                            maybeMsg.getChatId().toString(),
+                            maybeMsg.getMessageId(),
+                            "📅 Выберите день недели:",
+                            KeyboardUtils.createScheduleWeekMarkup(weekDates, null)
+                    )
+            ).subscribe();
+
+            return;
+        }
+        if (data.startsWith("TOMORROW_")){
+            LocalDate tomorrow = LocalDate.parse(data.replace("TOMORROW_", ""));
+
+            userService.getUserForTelegramTag(callbackQuery.getFrom().getUserName())
+                    .flatMap(user -> scheduleService.getScheduleSomeDate(user.getGroupName(), tomorrow))
+                    .flatMap(scheduleText ->
+                            messageSenderService.editMessageText(
+                                    KeyboardUtils.createEditMessage(
+                                            maybeMsg.getChatId().toString(),
+                                            maybeMsg.getMessageId(),
+                                            scheduleText,
+                                            KeyboardUtils.createMarkupWithTomorrow())
+                                    )
+                            )
+                    .subscribe();
+        }
+        //TODO Завтра/обратно
+        if (data.startsWith("BACK_TO_TODAY")){
+            LocalDate tomorrow = LocalDate.parse(data.replace("BACK_TO_TODAY_", ""));
+
+            userService.getUserForTelegramTag(callbackQuery.getFrom().getUserName())
+                    .flatMap(user -> scheduleService.getScheduleSomeDate(user.getGroupName(), tomorrow))
+                    .flatMap(scheduleText ->
+                            messageSenderService.editMessageText(
+                                    KeyboardUtils.createEditMessage(
+                                            maybeMsg.getChatId().toString(),
+                                            maybeMsg.getMessageId(),
+                                            scheduleText,
+                                            KeyboardUtils.createMarkupWithTomorrow())
+                            )
+                    )
+                    .subscribe();
         }
     }
     private boolean isStarosta(UserDTO user) {
         return user != null && "STAROSTA".equalsIgnoreCase(user.getRole());
+    }
+    private List<LocalDate> getWeekDates(LocalDate startDate) {
+        List<LocalDate> dates = new ArrayList<>();
+        LocalDate monday = startDate.with(DayOfWeek.MONDAY);
+        for (int i = 0; i < 6; i++) {
+            dates.add(monday.plusDays(i));
+        }
+        return dates;
     }
 }

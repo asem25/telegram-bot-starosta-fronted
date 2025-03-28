@@ -1,6 +1,7 @@
 package ru.semavin.bot.util;
 
 import org.telegram.telegrambots.meta.api.methods.send.SendMessage;
+import org.telegram.telegrambots.meta.api.methods.updatingmessages.EditMessageText;
 import org.telegram.telegrambots.meta.api.objects.replykeyboard.InlineKeyboardMarkup;
 import org.telegram.telegrambots.meta.api.objects.replykeyboard.ReplyKeyboardMarkup;
 import org.telegram.telegrambots.meta.api.objects.replykeyboard.buttons.InlineKeyboardButton;
@@ -8,8 +9,11 @@ import org.telegram.telegrambots.meta.api.objects.replykeyboard.buttons.InlineKe
 import org.telegram.telegrambots.meta.api.objects.replykeyboard.buttons.KeyboardButton;
 import org.telegram.telegrambots.meta.api.objects.replykeyboard.buttons.KeyboardRow;
 
+import java.time.LocalDate;
+import java.time.format.TextStyle;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Locale;
 
 /**
  * Утилитный класс для создания inline‑клавиатур для Telegram‑бота.
@@ -229,5 +233,84 @@ public class KeyboardUtils {
                 .text("Выберите дату")
                 .replyMarkup(CalendarUtils.buildCalendarKeyboard(year, month))
                 .build();
+    }
+
+        public static EditMessageText createEditMessage(String chatId, Integer messageId, String text, InlineKeyboardMarkup markup) {
+            return EditMessageText.builder()
+                    .chatId(chatId)
+                    .messageId(messageId)
+                    .text(text)
+                    .replyMarkup(markup)
+                    .build();
+        }
+
+    public static InlineKeyboardButton createInlineBackToCalendarButton() {
+        return InlineKeyboardButton.builder()
+                .text("🔙 Назад к календарю")
+                .callbackData("CALENDAR_BACK")
+                .build();
+    }
+
+    public static InlineKeyboardMarkup createMarkupWithBackToCalendarButton() {
+        return InlineKeyboardMarkup.builder()
+                .keyboard(List.of(new InlineKeyboardRow(createInlineBackToCalendarButton())))
+                .build();
+    }
+    /**
+     * Создает inline-кнопки для расписания недели с возможностью раскрывать день.
+     * @param datesOfWeek Список дат недели
+     * @param expandedDate Дата раскрытого дня (может быть null, если ни один день не раскрыт)
+     * @return InlineKeyboardMarkup с inline-кнопками
+     */
+    public static InlineKeyboardMarkup createScheduleWeekMarkup(List<LocalDate> datesOfWeek, LocalDate expandedDate) {
+        List<InlineKeyboardRow> rows = new ArrayList<>();
+
+        for (LocalDate date : datesOfWeek) {
+            String dayName = date.getDayOfWeek().getDisplayName(TextStyle.FULL_STANDALONE, new Locale("ru"));
+            String prefix = date.equals(expandedDate) ? "▲ " : "▼ ";
+
+            InlineKeyboardButton button = InlineKeyboardButton.builder()
+                    .text(prefix + dayName)
+                    .callbackData("SHOW_DAY_" + date)
+                    .build();
+
+            rows.add(new InlineKeyboardRow(button));
+        }
+
+        return InlineKeyboardMarkup.builder().keyboard(rows).build();
+    }
+
+    /**
+     * Создает inline-кнопку "Назад к неделе"
+     * @param weekStartDate Дата начала недели
+     * @return InlineKeyboardMarkup с кнопкой назад
+     */
+    public static InlineKeyboardMarkup createBackToWeekMarkup(LocalDate weekStartDate) {
+        InlineKeyboardRow row = new InlineKeyboardRow(InlineKeyboardButton.builder()
+                .text("🔙 Назад к неделе")
+                .callbackData("BACK_WEEK_" + weekStartDate)
+                .build());
+
+        return InlineKeyboardMarkup.builder().keyboard(List.of(row)).build();
+    }
+    public static InlineKeyboardMarkup createMarkupWithTomorrow(){
+        LocalDate today = LocalDate.now();
+        InlineKeyboardRow row = new InlineKeyboardRow(InlineKeyboardButton.builder()
+                .text("Завтра")
+                .callbackData("TOMORROW_" + today.plusDays(1))
+                .build()
+        );
+
+        return InlineKeyboardMarkup.builder().keyboard(List.of(row)).build();
+    }
+    public static InlineKeyboardMarkup createMarkupWithBackToToday(){
+        LocalDate today = LocalDate.now();
+        InlineKeyboardRow row = new InlineKeyboardRow(InlineKeyboardButton.builder()
+                .text("Завтра")
+                .callbackData("BACK_TO_TODAY_" + today)
+                .build()
+        );
+
+        return InlineKeyboardMarkup.builder().keyboard(List.of(row)).build();
     }
 }

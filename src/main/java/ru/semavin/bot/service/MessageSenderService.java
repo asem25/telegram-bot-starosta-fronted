@@ -6,7 +6,17 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.web.reactive.function.client.WebClient;
 import org.telegram.telegrambots.meta.api.methods.send.SendMessage;
+import org.telegram.telegrambots.meta.api.methods.updatingmessages.EditMessageReplyMarkup;
+import org.telegram.telegrambots.meta.api.methods.updatingmessages.EditMessageText;
+import org.telegram.telegrambots.meta.api.objects.replykeyboard.InlineKeyboardMarkup;
+import org.telegram.telegrambots.meta.api.objects.replykeyboard.buttons.InlineKeyboardButton;
+import org.telegram.telegrambots.meta.api.objects.replykeyboard.buttons.InlineKeyboardRow;
+import org.telegram.telegrambots.meta.exceptions.TelegramApiException;
+import reactor.core.CorePublisher;
 import reactor.core.publisher.Mono;
+
+import java.util.ArrayList;
+import java.util.List;
 
 @Slf4j
 @Service
@@ -14,7 +24,6 @@ import reactor.core.publisher.Mono;
 public class MessageSenderService {
 
     private final WebClient webClient;
-
     @Value("${bot.token}")
     private String botToken;
 
@@ -62,5 +71,40 @@ public class MessageSenderService {
                 response -> log.info("Сообщение отправлено: {}", text),
                 error -> log.error("Ошибка при отправке сообщения", error)
         );
+    }
+
+
+    public Mono<String> editMessageMarkup(EditMessageReplyMarkup markup) {
+        return webClient.post()
+                .uri(URL + botToken + "/editMessageReplyMarkup")
+                .bodyValue(markup)
+                .retrieve()
+                .bodyToMono(String.class)
+                .doOnError(error -> log.error("Ошибка при редактировании клавиатуры", error));
+    }
+    public Mono<Void> editMessageText(EditMessageText editMessageText) {
+        log.info("Попытка редактирования сообщения {}", editMessageText.getReplyMarkup().getKeyboard());
+
+        return webClient.post()
+                .uri(URL + botToken + "/editMessageText")
+                .bodyValue(editMessageText)
+                .retrieve()
+                .bodyToMono(String.class)
+                .doOnSuccess(resp -> log.info("Сообщение {} успешно отредактировано", editMessageText.getMessageId()))
+                .doOnError(error -> log.error("Ошибка при редактировании текста сообщения", error))
+                .then();
+    }
+    public Mono<String> editCalendarMarkup(Long chatId, Integer messageId, InlineKeyboardMarkup markup) {
+        //TODO Вынести логику создания кнопок в ${link KeyBoardUtils}
+
+
+        List<InlineKeyboardRow> rows = new ArrayList<>(markup.getKeyboard());
+
+        EditMessageReplyMarkup edit = EditMessageReplyMarkup.builder()
+                .chatId(chatId.toString())
+                .messageId(messageId)
+                .replyMarkup(InlineKeyboardMarkup.builder().keyboard(rows).build())
+                .build();
+        return editMessageMarkup(edit);
     }
 }
