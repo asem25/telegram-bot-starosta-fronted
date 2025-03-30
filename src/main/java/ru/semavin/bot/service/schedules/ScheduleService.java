@@ -3,14 +3,12 @@ package ru.semavin.bot.service.schedules;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
-import reactor.core.publisher.Mono;
 import ru.semavin.bot.dto.ScheduleDTO;
-import ru.semavin.bot.service.MessageSenderService;
 
-import java.time.DayOfWeek;
 import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
 import java.util.List;
+import java.util.concurrent.CompletableFuture;
 
 @Slf4j
 @Service
@@ -18,48 +16,46 @@ import java.util.List;
 public class ScheduleService {
 
     private final ScheduleApiService scheduleApiService;
-    private final MessageSenderService messageSenderService;
 
     private final DateTimeFormatter formatter = DateTimeFormatter.ofPattern("dd.MM.yyyy");
 
-    public Mono<String> getForToday(String groupName) {
+    public CompletableFuture<String> getForToday(String groupName) {
         String formattedDate = LocalDate.now().format(formatter);
         return scheduleApiService.getForSomeDate(formattedDate, groupName)
-                .map(schedule -> buildScheduleTextForDay(schedule, formattedDate))
-                .onErrorResume(e -> {
+                .thenApply(schedule -> buildScheduleTextForDay(schedule, formattedDate))
+                .exceptionally(e -> {
                     log.error("Ошибка при получении текста расписания на дату {}: {}", formattedDate, e.getMessage());
-                    return Mono.just("⚠ Ошибка при получении расписания на дату " + formattedDate);
+                    return "⚠ Ошибка при получении расписания на дату " + formattedDate;
                 });
     }
 
-    public Mono<String> getForCurrentWeek(String groupName) {
+    public CompletableFuture<String> getForCurrentWeek(String groupName) {
         String formattedDate = LocalDate.now().format(formatter);
         return scheduleApiService.getForCurrentWeek(groupName)
-                .map(schedule -> buildScheduleTextForWeek(schedule, formattedDate, formattedDate))
-                .onErrorResume(e -> {
-                    log.error("Ошибка при получении текста расписания на дату {}: {}", formattedDate, e.getMessage());
-                    return Mono.just("⚠ Ошибка при получении расписания на дату " + formattedDate);
+                .thenApply(schedule -> buildScheduleTextForWeek(schedule, formattedDate, formattedDate))
+                .exceptionally(e -> {
+                    log.error("Ошибка при получении текста расписания на неделю {}: {}", formattedDate, e.getMessage());
+                    return "⚠ Ошибка при получении расписания на неделю от " + formattedDate;
                 });
     }
 
-    public Mono<String> getForSomeWeek(String groupName, int week) {
+    public CompletableFuture<String> getForSomeWeek(String groupName, int week) {
         String formattedDate = LocalDate.now().format(formatter);
         return scheduleApiService.getForSomeWeek(groupName, week)
-                .map(schedule -> buildScheduleTextForWeek(schedule, formattedDate, formattedDate))
-                .onErrorResume(e -> {
-                    log.error("Ошибка при получении текста расписания на дату {}: {}", formattedDate, e.getMessage());
-                    return Mono.just("⚠ Ошибка при получении расписания на дату " + formattedDate);
+                .thenApply(schedule -> buildScheduleTextForWeek(schedule, formattedDate, formattedDate))
+                .exceptionally(e -> {
+                    log.error("Ошибка при получении текста расписания на неделю {}: {}", formattedDate, e.getMessage());
+                    return "⚠ Ошибка при получении расписания на неделю от " + formattedDate;
                 });
     }
 
-    //TODO Вызывается из API(не должно быть так)
-    public Mono<String> getScheduleSomeDate(String groupName, LocalDate date) {
+    public CompletableFuture<String> getScheduleSomeDate(String groupName, LocalDate date) {
         String formattedDate = date.format(formatter);
         return scheduleApiService.getForSomeDate(formattedDate, groupName)
-                .map(schedule -> buildScheduleTextForDay(schedule, formattedDate))
-                .onErrorResume(e -> {
+                .thenApply(schedule -> buildScheduleTextForDay(schedule, formattedDate))
+                .exceptionally(e -> {
                     log.error("Ошибка при получении текста расписания на дату {}: {}", formattedDate, e.getMessage());
-                    return Mono.just("⚠ Ошибка при получении расписания на дату " + formattedDate);
+                    return "⚠ Ошибка при получении расписания на дату " + formattedDate;
                 });
     }
 
@@ -79,6 +75,7 @@ public class ScheduleService {
         }
         return sb.toString();
     }
+
     private String buildScheduleTextForWeek(List<ScheduleDTO> schedule,
                                             String localDateStartWeek,
                                             String localDateEndWeek) {
@@ -96,5 +93,4 @@ public class ScheduleService {
         }
         return sb.toString();
     }
-
 }

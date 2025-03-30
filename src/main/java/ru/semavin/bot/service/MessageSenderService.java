@@ -4,107 +4,98 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
-import org.springframework.web.reactive.function.client.WebClient;
+import org.springframework.web.client.RestClient;
 import org.telegram.telegrambots.meta.api.methods.send.SendMessage;
 import org.telegram.telegrambots.meta.api.methods.updatingmessages.EditMessageReplyMarkup;
 import org.telegram.telegrambots.meta.api.methods.updatingmessages.EditMessageText;
 import org.telegram.telegrambots.meta.api.objects.replykeyboard.InlineKeyboardMarkup;
-import org.telegram.telegrambots.meta.api.objects.replykeyboard.buttons.InlineKeyboardButton;
-import org.telegram.telegrambots.meta.api.objects.replykeyboard.buttons.InlineKeyboardRow;
-import org.telegram.telegrambots.meta.exceptions.TelegramApiException;
-import reactor.core.CorePublisher;
-import reactor.core.publisher.Mono;
 
-import java.util.ArrayList;
-import java.util.List;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ExecutorService;
 
 @Slf4j
 @Service
 @RequiredArgsConstructor
 public class MessageSenderService {
 
-    private final WebClient webClient;
+    private final RestClient restClient;
+    private final ExecutorService executorService;
+
     @Value("${bot.token}")
     private String botToken;
 
-    private  final  String URL = "https://api.telegram.org/bot" ;
-    /**
-     * Отправляет сообщение в указанный чат через Telegram API.
-     *
-     * @param chatId идентификатор чата, куда нужно отправить сообщение.
-     * @param text   текст сообщения.
-     * @return Mono с ответом от Telegram API.
-     */
-    public Mono<String> sendMessage(Long chatId, String text) {
+    private static final String TELEGRAM_API_BASE = "https://api.telegram.org/bot";
 
-        SendMessage message = SendMessage.builder()
-                .chatId(chatId.toString())
-                .text(text)
-                .build();
-        return webClient.post()
-                .uri(URL + botToken + "/sendMessage")
-                .bodyValue(message)
-                .retrieve()
-                .bodyToMono(String.class)
-                .doOnError(error -> log.error("Ошибка при отправке сообщения", error));
+    public CompletableFuture<String> sendMessage(Long chatId, String text) {
+        return CompletableFuture.supplyAsync(() -> {
+            SendMessage message = SendMessage.builder()
+                    .chatId(chatId.toString())
+                    .text(text)
+                    .build();
+
+            return restClient.post()
+                    .uri(TELEGRAM_API_BASE + botToken + "/sendMessage")
+                    .body(message)
+                    .retrieve()
+                    .body(String.class);
+        }, executorService).exceptionally(ex -> {
+            log.error("Ошибка при отправке сообщения: {}", ex.getMessage());
+            return null;
+        });
     }
-    public Mono<String> sendButtonMessage(SendMessage message) {
-        return webClient.post()
-                .uri(URL + botToken + "/sendMessage")
-                .bodyValue(message)
-                .retrieve()
-                .bodyToMono(String.class)
-                .doOnError(error -> log.error("Ошибка при отправке сообщения", error));
+
+    public CompletableFuture<String> sendButtonMessage(SendMessage message) {
+        return CompletableFuture.supplyAsync(() -> restClient.post()
+                        .uri(TELEGRAM_API_BASE + botToken + "/sendMessage")
+                        .body(message)
+                        .retrieve()
+                        .body(String.class), executorService)
+                .exceptionally(ex -> {
+                    log.error("Ошибка при отправке сообщения с кнопками: {}", ex.getMessage());
+                    return null;
+                });
     }
-    /**
-     * Отправляет текстовое сообщение в указанный чат.
-     * <p>
-     * В данном примере отправка сообщения реализована через логирование.
-     * В реальной реализации здесь следует использовать метод отправки сообщений (например, execute(SendMessage)).
-     * </p>
-     *
-     * @param chatId идентификатор чата.
-     * @param text   текст сообщения.
-     */
+
     public void sendTextMessage(Long chatId, String text) {
-        sendMessage(chatId, text).subscribe(
-                response -> log.info("Сообщение отправлено: {}", text),
-                error -> log.error("Ошибка при отправке сообщения", error)
-        );
+        sendMessage(chatId, text).thenAccept(response -> log.info("Сообщение отправлено: {}", text))
+                .exceptionally(ex -> {
+                    log.error("Ошибка при отправке сообщения: {}", ex.getMessage());
+                    return null;
+                });
     }
 
-
-    public Mono<String> editMessageMarkup(EditMessageReplyMarkup markup) {
-        return webClient.post()
-                .uri(URL + botToken + "/editMessageReplyMarkup")
-                .bodyValue(markup)
-                .retrieve()
-                .bodyToMono(String.class)
-                .doOnError(error -> log.error("Ошибка при редактировании клавиатуры", error));
+    public CompletableFuture<String> editMessageMarkup(EditMessageReplyMarkup markup) {
+        return CompletableFuture.supplyAsync(() -> restClient.post()
+                        .uri(TELEGRAM_API_BASE + botToken + "/editMessageReplyMarkup")
+                        .body(markup)
+                        .retrieve()
+                        .body(String.class), executorService)
+                .exceptionally(ex -> {
+                    log.error("Ошибка при редактировании клавиатуры: {}", ex.getMessage());
+                    return null;
+                });
     }
-    public Mono<Void> editMessageText(EditMessageText editMessageText) {
-        log.info("Попытка редактирования сообщения {}", editMessageText.getReplyMarkup().getKeyboard());
 
-        return webClient.post()
-                .uri(URL + botToken + "/editMessageText")
-                .bodyValue(editMessageText)
-                .retrieve()
-                .bodyToMono(String.class)
-                .doOnSuccess(resp -> log.info("Сообщение {} успешно отредактировано", editMessageText.getMessageId()))
-                .doOnError(error -> log.error("Ошибка при редактировании текста сообщения", error))
-                .then();
+    public CompletableFuture<Void> editMessageText(EditMessageText editMessageText) {
+        return CompletableFuture.runAsync(() -> restClient.post()
+                        .uri(TELEGRAM_API_BASE + botToken + "/editMessageText")
+                        .body(editMessageText)
+                        .retrieve()
+                        .toBodilessEntity(), executorService)
+                .thenAccept(resp -> log.info("Сообщение {} успешно отредактировано", editMessageText.getMessageId()))
+                .exceptionally(ex -> {
+                    log.error("Ошибка при редактировании текста сообщения: {}", ex.getMessage());
+                    return null;
+                });
     }
-    public Mono<String> editCalendarMarkup(Long chatId, Integer messageId, InlineKeyboardMarkup markup) {
-        //TODO Вынести логику создания кнопок в ${link KeyBoardUtils}
 
-
-        List<InlineKeyboardRow> rows = new ArrayList<>(markup.getKeyboard());
-
+    public CompletableFuture<String> editCalendarMarkup(Long chatId, Integer messageId, InlineKeyboardMarkup markup) {
         EditMessageReplyMarkup edit = EditMessageReplyMarkup.builder()
                 .chatId(chatId.toString())
                 .messageId(messageId)
-                .replyMarkup(InlineKeyboardMarkup.builder().keyboard(rows).build())
+                .replyMarkup(markup)
                 .build();
+
         return editMessageMarkup(edit);
     }
 }
