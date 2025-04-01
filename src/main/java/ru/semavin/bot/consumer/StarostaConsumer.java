@@ -59,8 +59,8 @@ public class StarostaConsumer implements LongPollingUpdateConsumer {
 
         stepUpdates.forEach(this::processSingleUpdate);
 
-        normalUpdates.parallelStream().forEach(update ->
-                CompletableFuture.runAsync(() -> processSingleUpdate(update), executorService)
+        normalUpdates.forEach(update ->
+                executorService.submit(() -> processSingleUpdate(update))
         );
     }
 
@@ -198,7 +198,13 @@ public class StarostaConsumer implements LongPollingUpdateConsumer {
             }
 
             case "Неделя по номеру" -> {
-
+                messageSenderService.sendButtonMessage(
+                        SendMessage.builder()
+                                .chatId(chatId)
+                                .text("📅 Выберите месяц:")
+                                .replyMarkup(CalendarUtils.buildMonthsMarkup())
+                                .build()
+                );
             }
             case "День по дате" -> {
                 LocalDate now = LocalDate.now();
@@ -226,10 +232,17 @@ public class StarostaConsumer implements LongPollingUpdateConsumer {
                         );
                     }
                 })
+
                 .thenAccept(resp -> {
                     // здесь обычно ничего не возвращаем, метод Void
                     log.info("Главное меню успешно отправлено пользователю {}", from.getUserName());
+                })
+                .exceptionally(e -> {
+                    log.error("Ошибка при проверке /start: {}", e.getMessage(), e);
+                    messageSenderService.sendTextMessage(chatId, "Какая то проблема:/");
+                    return null;
                 });
+
     }
 
     private void handleCallback(CallbackQuery callbackQuery) {
@@ -400,6 +413,57 @@ public class StarostaConsumer implements LongPollingUpdateConsumer {
                         messageSenderService.sendTextMessage(chatId, "Ошибка при получении расписания на сегодня.");
                         return null;
                     });
+        }
+        if (data.equals("BACK_WEEKS")) {
+            YearMonth currentMonth = YearMonth.now();
+            messageSenderService.editMessageText(
+                    KeyboardUtils.createEditMessage(
+                            chatId.toString(),
+                            messageId,
+                            "📅 Выберите неделю месяца:",
+                            CalendarUtils.buildWeeksMarkupForMonth(currentMonth)
+                    )
+            );
+            return;
+        }
+        if (data.startsWith("MONTH_")) {
+            YearMonth month = YearMonth.parse(data.replace("MONTH_", ""));
+            messageSenderService.editMessageText(
+                    KeyboardUtils.createEditMessage(
+                            chatId.toString(),
+                            messageId,
+                            "📅 Выберите неделю месяца:",
+                            CalendarUtils.buildWeeksMarkupForMonth(month)
+                    )
+            );
+            return;
+        }
+
+        if (data.equals("BACK_MONTHS")) {
+            messageSenderService.editMessageText(
+                    KeyboardUtils.createEditMessage(
+                            chatId.toString(),
+                            messageId,
+                            "📅 Выберите месяц:",
+                            CalendarUtils.buildMonthsMarkup()
+                    )
+            );
+            return;
+        }
+        if (data.startsWith("WEEK_")){
+            int neededWeek = Integer.parseInt(data.substring("WEEK_".length()));
+
+            messageSenderService.editMessageText(
+                    KeyboardUtils.createEditMessage(
+                            chatId.toString(),
+                            messageId,
+                            "📅 Выберите день недели:",
+                            CalendarUtils.buildWeekMessageWithBack(neededWeek)
+                    )
+            ).exceptionally(e -> {
+                log.error("Ошибка при возврате к неделе: {}", e.getMessage());
+                return null;
+            });
         }
     }
 

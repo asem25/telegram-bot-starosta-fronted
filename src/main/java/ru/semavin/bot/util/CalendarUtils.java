@@ -9,11 +9,13 @@ import java.time.DayOfWeek;
 import java.time.LocalDate;
 import java.time.Month;
 import java.time.YearMonth;
+import java.time.format.DateTimeFormatter;
 import java.time.format.TextStyle;
 import java.time.temporal.ChronoUnit;
-import java.time.temporal.IsoFields;
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.atomic.AtomicReference;
 
 @UtilityClass
 public class CalendarUtils {
@@ -21,15 +23,23 @@ public class CalendarUtils {
     private static final LocalDate MIN_DATE = LocalDate.of(2025, 2, 10);
     private static final LocalDate MAX_DATE = LocalDate.of(2025, 6, 30);
 
-
-    //Кэш для кнопки недель
+    //Кэш для месяцев
+    private static final AtomicReference<InlineKeyboardMarkup> cachedMonthsMarkup = new AtomicReference<>();
+    //Кэш для кнопок календаря и память последнего
     private static final Map<Integer, InlineKeyboardMarkup> weekScheduleCache = new ConcurrentHashMap<>();
     private static final Map<YearMonth, InlineKeyboardMarkup> calendarCache = new ConcurrentHashMap<>();
     private static final Map<Long, YearMonth> userMonthContext = new ConcurrentHashMap<>();
+    //Кэш для выбора недель
+    private static final Map<YearMonth, InlineKeyboardMarkup> monthWeeksCache = new ConcurrentHashMap<>();
+
+
+
+    private static final Locale RU_LOCALE = new Locale("ru");
 
     static {
         preloadAllCalendars();
         preloadAllWeeks();
+        preLoadMothsMarkup();
     }
 
     /**
@@ -44,6 +54,9 @@ public class CalendarUtils {
             current = current.plusMonths(1);
         }
     }
+    /**
+     * Предварительно создаёт и кэширует недели для всего в допустимом диапазоне
+     */
     public static void preloadAllWeeks(){
         LocalDate start = MIN_DATE.with(DayOfWeek.MONDAY);
         LocalDate end = MAX_DATE;
@@ -66,6 +79,34 @@ public class CalendarUtils {
             current = current.plusWeeks(1);
         }
     }
+    public void preLoadMothsMarkup(){
+        cachedMonthsMarkup.set(generateMonthsMarkup());
+    }
+    private static String getMonthDisplayName(YearMonth month) {
+        return month.getMonth().getDisplayName(TextStyle.FULL_STANDALONE, RU_LOCALE) + " " + month.getYear();
+    }
+    private static LocalDate getCorrectFirstWeekStart(YearMonth month) {
+        LocalDate firstWeekStart = month.atDay(1).with(DayOfWeek.MONDAY);
+        return firstWeekStart.isBefore(MIN_DATE) ? MIN_DATE : firstWeekStart;
+    }
+    private static InlineKeyboardMarkup generateMonthsMarkup() {
+        List<InlineKeyboardRow> rows = new ArrayList<>();
+        YearMonth current = YearMonth.from(MIN_DATE);
+        YearMonth end = YearMonth.from(MAX_DATE);
+
+        while (!current.isAfter(end)) {
+            rows.add(new InlineKeyboardRow(
+                    InlineKeyboardButton.builder()
+                            .text(getMonthDisplayName(current))
+                            .callbackData("MONTH_" + current)
+                            .build()
+            ));
+            current = current.plusMonths(1);
+        }
+
+        return InlineKeyboardMarkup.builder().keyboard(rows).build();
+    }
+
     public InlineKeyboardMarkup buildCalendarKeyboard(int year, int month) {
         YearMonth ym = YearMonth.of(year, month);
         return calendarCache.computeIfAbsent(ym, key -> generateCalendar(year, month));
@@ -73,9 +114,77 @@ public class CalendarUtils {
     public static InlineKeyboardMarkup buildWeekMessage(int neededWeek){
         return weekScheduleCache.get(neededWeek);
     }
-    public static InlineKeyboardMarkup buildWeekAllMessage(int currentWeek){
-        //TODO Вывод всех недель
-        return null;
+    public static InlineKeyboardMarkup buildWeekMessageWithBack(int neededWeek){
+        InlineKeyboardMarkup fromCache = weekScheduleCache.get(neededWeek);
+
+        List<InlineKeyboardRow> newKeyBoard = new ArrayList<>(fromCache.getKeyboard());
+
+        newKeyBoard.add(new InlineKeyboardRow(KeyboardUtils.createBackToWeeksMarkup()));
+
+        return new InlineKeyboardMarkup(newKeyBoard);
+    }
+
+    public static InlineKeyboardMarkup buildMonthsMarkup() {
+        return cachedMonthsMarkup.get();
+    }
+    public static InlineKeyboardMarkup buildWeeksMarkupForMonth(YearMonth month) {
+        return monthWeeksCache.computeIfAbsent(month, m -> {
+            List<InlineKeyboardRow> rows = new ArrayList<>();
+            LocalDate firstWeekStart = getCorrectFirstWeekStart(m);
+            LocalDate lastDayOfMonth = m.atEndOfMonth();
+
+            int currentWeek = getRelativeWeekNumber(LocalDate.now());
+
+            while (!firstWeekStart.isAfter(lastDayOfMonth)) {
+                int weekNumber = getRelativeWeekNumber(firstWeekStart);
+                LocalDate weekEnd = firstWeekStart.plusDays(5).isAfter(MAX_DATE) ? MAX_DATE : firstWeekStart.plusDays(5);
+
+                String text = (weekNumber == currentWeek ? "⭐ " : "")
+                        + "Неделя " + weekNumber + ": "
+                        + firstWeekStart.format(DateTimeFormatter.ofPattern("dd.MM"))
+                        + " - "
+                        + weekEnd.format(DateTimeFormatter.ofPattern("dd.MM"));
+
+                rows.add(new InlineKeyboardRow(InlineKeyboardButton.builder()
+                        .text(text)
+                        .callbackData("WEEK_" + weekNumber)
+                        .build()));
+
+                firstWeekStart = firstWeekStart.plusWeeks(1);
+            }
+
+            rows.add(buildNavigationRow(m));
+
+            return InlineKeyboardMarkup.builder().keyboard(rows).build();
+        });
+    }
+
+    private static InlineKeyboardRow buildNavigationRow(YearMonth currentMonth) {
+        InlineKeyboardRow navRow = new InlineKeyboardRow();
+
+        YearMonth prevMonth = currentMonth.minusMonths(1);
+        YearMonth nextMonth = currentMonth.plusMonths(1);
+
+        if (!prevMonth.atEndOfMonth().isBefore(MIN_DATE)) {
+            navRow.add(InlineKeyboardButton.builder()
+                    .text("⬅️ " + getMonthDisplayName(prevMonth))
+                    .callbackData("MONTH_" + prevMonth)
+                    .build());
+        }
+
+        navRow.add(InlineKeyboardButton.builder()
+                .text("🔙 К выбору месяца")
+                .callbackData("BACK_MONTHS")
+                .build());
+
+        if (!nextMonth.atDay(1).isAfter(MAX_DATE)) {
+            navRow.add(InlineKeyboardButton.builder()
+                    .text(getMonthDisplayName(nextMonth) + " ➡️")
+                    .callbackData("MONTH_" + nextMonth)
+                    .build());
+        }
+
+        return navRow;
     }
     private InlineKeyboardMarkup generateCalendar(int year, int month) {
         List<InlineKeyboardRow> rows = new ArrayList<>();

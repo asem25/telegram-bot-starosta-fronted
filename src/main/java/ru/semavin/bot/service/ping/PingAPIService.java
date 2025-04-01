@@ -30,7 +30,7 @@ public class PingAPIService {
                 log.error("Telegram api ping failed: {}", response.getBody());
             }
         } catch (RestClientException e) {
-            log.warn("Telegram api service error");
+            log.warn("Telegram api service error: {}", e.getMessage());
         }
     }
 

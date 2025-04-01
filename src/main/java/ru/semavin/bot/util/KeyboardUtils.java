@@ -299,6 +299,16 @@ public class KeyboardUtils {
 
         return InlineKeyboardMarkup.builder().keyboard(List.of(row)).build();
     }
+    /**
+     * Создает inline-кнопку "Назад к неделям"
+     * @return InlineKeyboardMarkup с кнопкой назад
+     */
+    public static InlineKeyboardButton createBackToWeeksMarkup() {
+        return InlineKeyboardButton.builder()
+                .text("🔙 Назад к неделям")
+                .callbackData("BACK_WEEKS")
+                .build();
+    }
     public static InlineKeyboardMarkup createMarkupWithTomorrow(LocalDate currentDate) {
         InlineKeyboardRow row = new InlineKeyboardRow(InlineKeyboardButton.builder()
                 .text("Завтра ➡️")

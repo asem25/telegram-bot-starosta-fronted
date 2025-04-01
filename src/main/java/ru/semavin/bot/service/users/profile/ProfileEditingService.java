@@ -31,7 +31,7 @@ public class ProfileEditingService {
 
     public void processEditStep(Long chatId, String text) {
         EditStep step = editProfileStateService.getStep(chatId);
-        //TODO Могут тыкнуть посмотреть профиль или изменить профиль
+
         if ("посмотреть данные".equals(text)) {
             messageSenderService.sendTextMessage(chatId, "Вы изменяете данные. Для выхода нажмите 'Назад'");
             return;

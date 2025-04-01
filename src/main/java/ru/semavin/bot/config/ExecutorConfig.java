@@ -10,6 +10,6 @@ import java.util.concurrent.Executors;
 public class ExecutorConfig {
     @Bean
     public ExecutorService taskExecutor() {
-        return Executors.newVirtualThreadPerTaskExecutor();
+        return Executors.newFixedThreadPool(10);
     }
 }
