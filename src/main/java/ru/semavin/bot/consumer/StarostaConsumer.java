@@ -24,6 +24,7 @@ import ru.semavin.bot.util.exceptions.UserNotFoundException;
 
 import java.time.DayOfWeek;
 import java.time.LocalDate;
+import java.time.YearMonth;
 import java.util.*;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutorService;
@@ -185,21 +186,20 @@ public class StarostaConsumer implements LongPollingUpdateConsumer {
             }
 
             case "На неделю" -> {
-                LocalDate currentMonday = LocalDate.now().with(DayOfWeek.MONDAY);
-                List<LocalDate> weekDates = getWeekDates(currentMonday);
+                int neededWeek = CalendarUtils.getRelativeWeekNumber(LocalDate.now());
 
                 messageSenderService.sendButtonMessage(
                         SendMessage.builder()
                                 .chatId(chatId)
                                 .text("📅 Выберите день недели:")
-                                .replyMarkup(KeyboardUtils.createScheduleWeekMarkup(weekDates, null))
+                                .replyMarkup(CalendarUtils.buildWeekMessage(neededWeek))
                                 .build()
                 );
             }
 
-            case "Неделя по номеру" ->
-                    messageSenderService.sendTextMessage(chatId, "Введите номер недели:");
+            case "Неделя по номеру" -> {
 
+            }
             case "День по дате" -> {
                 LocalDate now = LocalDate.now();
                 messageSenderService.sendButtonMessage(
@@ -258,6 +258,8 @@ public class StarostaConsumer implements LongPollingUpdateConsumer {
                 return;
             }
 
+            CalendarUtils.rememberMonthForUser(callbackQuery.getFrom().getId(), YearMonth.from(selectedDate));
+
             userService.getUserForTelegramTag(username)
                     .thenCompose(user -> scheduleService.getScheduleSomeDate(user.getGroupName(), selectedDate))
                     .thenCompose(scheduleText ->
@@ -284,6 +286,7 @@ public class StarostaConsumer implements LongPollingUpdateConsumer {
             int year = Integer.parseInt(parts[2]);
             int month = Integer.parseInt(parts[3]);
 
+
             InlineKeyboardMarkup calendar = CalendarUtils.buildCalendarKeyboard(year, month);
             messageSenderService.editCalendarMarkup(chatId, messageId, calendar)
                     .exceptionally(e -> {
@@ -295,7 +298,9 @@ public class StarostaConsumer implements LongPollingUpdateConsumer {
 
         if ("CALENDAR_BACK".equals(data)) {
             LocalDate now = LocalDate.now();
-            SendMessage calendarMessage = KeyboardUtils.createMessageWithInlineCalendar(chatId, now.getYear(), now.getMonthValue());
+            SendMessage calendarMessage = KeyboardUtils.createMessageWithInlineCalendar(chatId, now.getYear(),
+                    CalendarUtils.getUserMonthOrDefault(callbackQuery.getFrom().getId()).getMonthValue());
+
 
             messageSenderService.editMessageText(
                     KeyboardUtils.createEditMessage(
@@ -336,15 +341,14 @@ public class StarostaConsumer implements LongPollingUpdateConsumer {
         }
 
         if (data.startsWith("BACK_WEEK_")) {
-            LocalDate weekStartDate = LocalDate.parse(data.replace("BACK_WEEK_", ""));
-            List<LocalDate> weekDates = getWeekDates(weekStartDate);
+            int neededWeek = CalendarUtils.getRelativeWeekNumber(LocalDate.now());
 
             messageSenderService.editMessageText(
                     KeyboardUtils.createEditMessage(
                             chatId.toString(),
                             messageId,
                             "📅 Выберите день недели:",
-                            KeyboardUtils.createScheduleWeekMarkup(weekDates, null)
+                            CalendarUtils.buildWeekMessage(neededWeek)
                     )
             ).exceptionally(e -> {
                 log.error("Ошибка при возврате к неделе: {}", e.getMessage());

@@ -14,6 +14,8 @@ import java.time.format.TextStyle;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
+import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
 
 /**
  * Утилитный класс для создания inline‑клавиатур для Telegram‑бота.
@@ -21,6 +23,8 @@ import java.util.Locale;
  * и для выбора роли пользователя.
  */
 public class KeyboardUtils {
+
+
     /**
      * Создает inline‑клавиатуру с одной кнопкой «Регистрация».
      * При нажатии на кнопку будет отправлено CallbackQuery с данными "REG_START".
@@ -266,11 +270,13 @@ public class KeyboardUtils {
         List<InlineKeyboardRow> rows = new ArrayList<>();
 
         for (LocalDate date : datesOfWeek) {
-            String dayName = date.getDayOfWeek().getDisplayName(TextStyle.FULL_STANDALONE, new Locale("ru"));
+            String dayName = date.getDayOfWeek().getDisplayName(TextStyle.FULL, Locale.getDefault());
             String prefix = date.equals(expandedDate) ? "▲ " : "▼ ";
 
+            String dayNameToButton = dayName.substring(0, 1).toUpperCase() + dayName.substring(1);
+
             InlineKeyboardButton button = InlineKeyboardButton.builder()
-                    .text(prefix + dayName)
+                    .text(prefix + dayNameToButton + " - " + (date.getDayOfMonth() + "." + (date.getMonthValue() / 10 == 0? "0" + date.getMonthValue() : date.getMonthValue() )))
                     .callbackData("SHOW_DAY_" + date)
                     .build();
 

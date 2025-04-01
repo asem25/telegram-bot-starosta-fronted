@@ -5,10 +5,13 @@ import org.telegram.telegrambots.meta.api.objects.replykeyboard.InlineKeyboardMa
 import org.telegram.telegrambots.meta.api.objects.replykeyboard.buttons.InlineKeyboardButton;
 import org.telegram.telegrambots.meta.api.objects.replykeyboard.buttons.InlineKeyboardRow;
 
+import java.time.DayOfWeek;
 import java.time.LocalDate;
 import java.time.Month;
 import java.time.YearMonth;
 import java.time.format.TextStyle;
+import java.time.temporal.ChronoUnit;
+import java.time.temporal.IsoFields;
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 
@@ -18,11 +21,15 @@ public class CalendarUtils {
     private static final LocalDate MIN_DATE = LocalDate.of(2025, 2, 10);
     private static final LocalDate MAX_DATE = LocalDate.of(2025, 6, 30);
 
+
+    //Кэш для кнопки недель
+    private Map<Integer, InlineKeyboardMarkup> weekScheduleCache = new ConcurrentHashMap<>();
     private static final Map<YearMonth, InlineKeyboardMarkup> calendarCache = new ConcurrentHashMap<>();
     private static final Map<Long, YearMonth> userMonthContext = new ConcurrentHashMap<>();
 
     static {
         preloadAllCalendars();
+        preloadAllWeeks();
     }
 
     /**
@@ -37,12 +44,38 @@ public class CalendarUtils {
             current = current.plusMonths(1);
         }
     }
+    public static void preloadAllWeeks(){
+        LocalDate start = MIN_DATE.with(DayOfWeek.MONDAY);
+        LocalDate end = MAX_DATE;
 
+        LocalDate current = start;
+        int weekIndex = 1;
+
+        while (!current.isAfter(end)) {
+            List<LocalDate> weekDates = new ArrayList<>();
+            for (int j = 0; j < 6; j++) {
+                LocalDate day = current.plusDays(j);
+                if (!day.isAfter(end)) {
+                    weekDates.add(day);
+                }
+            }
+
+            InlineKeyboardMarkup markup = KeyboardUtils.createScheduleWeekMarkup(weekDates, null);
+            weekScheduleCache.put(weekIndex++, markup);
+
+            current = current.plusWeeks(1);
+        }
+    }
     public InlineKeyboardMarkup buildCalendarKeyboard(int year, int month) {
         YearMonth ym = YearMonth.of(year, month);
         return calendarCache.computeIfAbsent(ym, key -> generateCalendar(year, month));
     }
-
+    public static InlineKeyboardMarkup buildWeekMessage(int neededWeek){
+        return weekScheduleCache.get(neededWeek);
+    }
+    public static InlineKeyboardMarkup buildWeekAllMessage(int currentWeek){
+return null;
+    }
     private InlineKeyboardMarkup generateCalendar(int year, int month) {
         List<InlineKeyboardRow> rows = new ArrayList<>();
 
@@ -133,5 +166,21 @@ public class CalendarUtils {
 
     public YearMonth getUserMonthOrDefault(Long userId) {
         return userMonthContext.getOrDefault(userId, YearMonth.now());
+    }
+    /**
+     * Возвращает номер недели, начиная от MIN_DATE.
+     * Первая неделя — это неделя, в которую попадает MIN_DATE (с понедельника).
+     *
+     * @param date дата, для которой нужно определить номер недели
+     * @return относительный номер недели (1, 2, 3, ...)
+     */
+    public static int getRelativeWeekNumber(LocalDate date) {
+
+        long daysBetween = ChronoUnit.DAYS.between(MIN_DATE, date);
+        int weekNumber = (int) (daysBetween / 7) + 1;
+        if (date.getDayOfWeek() == DayOfWeek.SUNDAY) {
+            weekNumber++;
+        }
+        return weekNumber;
     }
 }
