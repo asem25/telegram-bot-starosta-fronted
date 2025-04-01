@@ -32,11 +32,11 @@ public class ProfileEditingService {
     public void processEditStep(Long chatId, String text) {
         EditStep step = editProfileStateService.getStep(chatId);
 
-        if ("посмотреть данные".equals(text)) {
+        if ("посмотреть данные".equalsIgnoreCase(text)) {
             messageSenderService.sendTextMessage(chatId, "Вы изменяете данные. Для выхода нажмите 'Назад'");
             return;
         }
-        if ("изменить данные".equals(text)) {
+        if ("изменить данные".equalsIgnoreCase(text)) {
             messageSenderService.sendTextMessage(chatId, "Вы уже меняете данные!");
             return;
         }
