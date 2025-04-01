@@ -23,7 +23,7 @@ public class CalendarUtils {
 
 
     //Кэш для кнопки недель
-    private Map<Integer, InlineKeyboardMarkup> weekScheduleCache = new ConcurrentHashMap<>();
+    private static final Map<Integer, InlineKeyboardMarkup> weekScheduleCache = new ConcurrentHashMap<>();
     private static final Map<YearMonth, InlineKeyboardMarkup> calendarCache = new ConcurrentHashMap<>();
     private static final Map<Long, YearMonth> userMonthContext = new ConcurrentHashMap<>();
 
@@ -74,7 +74,8 @@ public class CalendarUtils {
         return weekScheduleCache.get(neededWeek);
     }
     public static InlineKeyboardMarkup buildWeekAllMessage(int currentWeek){
-return null;
+        //TODO Вывод всех недель
+        return null;
     }
     private InlineKeyboardMarkup generateCalendar(int year, int month) {
         List<InlineKeyboardRow> rows = new ArrayList<>();
