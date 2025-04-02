@@ -8,7 +8,9 @@ import ru.semavin.bot.enums.RegistrationStep;
 import ru.semavin.bot.service.MessageSenderService;
 import ru.semavin.bot.service.requests.RequestService;
 import ru.semavin.bot.service.users.UserApiService;
+import ru.semavin.bot.service.users.UserService;
 import ru.semavin.bot.util.KeyboardUtils;
+import ru.semavin.bot.util.exceptions.EntityNotFoundException;
 
 @Slf4j
 @Service
@@ -17,9 +19,7 @@ public class UserRegistrationService {
 
     private final RegistrationStateService stateService;
     private final MessageSenderService messageSenderService;
-    private final UserApiService userApiService;
-    private final RequestService requestService;
-    //TODO Если не найдено группы
+    private final UserService userService;
     public void startRegistration(Long chatId, Long telegramId, org.telegram.telegrambots.meta.api.objects.User user) {
         UserDTO data = stateService.getData(chatId);
         data.setTelegramId(telegramId);
@@ -62,15 +62,23 @@ public class UserRegistrationService {
         messageSenderService.sendTextMessage(chatId, "Регистрация завершена! Сохраняем ваши данные...");
         log.info("Сохранена группа {} для чата {}. Завершаем регистрацию.", groupName, chatId);
 
-        userApiService.registerUser(data).thenAccept(response -> {
+        userService.registerUser(data).thenAccept(response -> {
             log.info("Ответ от API: {}", response);
             messageSenderService.sendTextMessage(chatId, "Вы успешно зарегистрированы!");
             stateService.clear(chatId);
             messageSenderService.sendButtonMessage(KeyboardUtils.createMessageAfterRegistration(chatId));
         }).exceptionally(error -> {
             log.error("Ошибка регистрации в API", error);
-            messageSenderService.sendTextMessage(chatId, "Произошла ошибка при регистрации. Попробуйте позже.");
-            stateService.clear(chatId);
+            {
+                if (error.getCause() instanceof EntityNotFoundException) {
+                    messageSenderService.sendTextMessage(chatId, String.format("Ошибка при сохранении данных: %s. Введите /start для начала регистрации"
+                            , error.getCause().getMessage()));
+                }else {
+                    messageSenderService.sendTextMessage(chatId, "Неизвестная ошибка при регистрации. Обратитесь к создателю");
+                }
+                log.error("Ошибка updateUser: ", error.getCause());
+                stateService.clear(chatId);
+            }
             return null;
         });
     }

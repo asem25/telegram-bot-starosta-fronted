@@ -1,5 +1,7 @@
 package ru.semavin.bot.service.users;
 
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
@@ -10,9 +12,10 @@ import org.springframework.stereotype.Service;
 import org.springframework.web.client.HttpClientErrorException;
 import org.springframework.web.client.RestClient;
 import ru.semavin.bot.dto.UserDTO;
-import ru.semavin.bot.util.exceptions.UserNotFoundException;
+import ru.semavin.bot.util.exceptions.EntityNotFoundException;
 
 
+import java.io.IOException;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutorService;
 
@@ -23,6 +26,7 @@ public class UserApiService {
 
     private final RestClient restClient;
     private final ExecutorService executorService;
+    private final ObjectMapper objectMapper;
 
     @Value("${api.key}")
     private String apiKey;
@@ -58,13 +62,23 @@ public class UserApiService {
                         .retrieve()
                         .onStatus(HttpStatusCode::is4xxClientError, (request, response) -> {
                             if (response.getStatusCode().equals(HttpStatus.NOT_FOUND)) {
-                                throw new UserNotFoundException("Пользователь не найден");
+                                throw new EntityNotFoundException("Пользователь не найден");
                             }
                         })
                         .body(UserDTO.class);
             } catch (HttpClientErrorException.NotFound e) {
-                log.info("Пользователь с id {} не найден (404)", id);
-                throw new UserNotFoundException("Пользователь не найден");
+                log.error("Ошибка при получение пользователя: {}", e.getMessage());
+                String responseBody = e.getResponseBodyAsString();
+                try {
+                    JsonNode root = objectMapper.readTree(responseBody);
+                    String errorDescription = root.path("error_description").asText();
+                    log.info("Error description: {}", errorDescription);
+                    throw new EntityNotFoundException(errorDescription);
+                } catch (IOException ex) {
+                    log.error("Ошибка парсинга ответа: {}", ex.getMessage());
+                }
+
+                return null;
             } catch (Exception e) {
                 log.error("Ошибка при получении пользователя с id {}: ", id, e);
                 throw new RuntimeException(e);
@@ -81,10 +95,24 @@ public class UserApiService {
                         .body(userDTO)
                         .retrieve()
                         .body(String.class);
-            } catch (Exception e) {
+            } catch (HttpClientErrorException e) {
                 log.error("Ошибка при обновлении пользователя: ", e);
-                throw new RuntimeException(e);
+                if (e instanceof HttpClientErrorException.NotFound notFoundException){
+                    log.error("Ошибка при получение пользователя: {}", e.getMessage());
+                    String responseBody = notFoundException.getResponseBodyAsString();
+                    try {
+                        JsonNode root = objectMapper.readTree(responseBody);
+                        String errorDescription = root.path("error_description").asText();
+                        log.info("Error description: {}", errorDescription);
+                        throw new EntityNotFoundException(errorDescription);
+                    } catch (IOException ex) {
+                        log.error("Ошибка парсинга ответа: {}", ex.getMessage());
+                    }
+                }
+
+                return null;
             }
         }, executorService);
     }
+
 }

@@ -9,10 +9,11 @@ import org.telegram.telegrambots.meta.api.objects.*;
 import org.telegram.telegrambots.meta.api.objects.message.MaybeInaccessibleMessage;
 import org.telegram.telegrambots.meta.api.objects.message.Message;
 import org.telegram.telegrambots.meta.api.objects.replykeyboard.InlineKeyboardMarkup;
-import ru.semavin.bot.dto.UserDTO;
+import ru.semavin.bot.botcommands.BotCommandHandler;
 import ru.semavin.bot.enums.RegistrationStep;
 import ru.semavin.bot.service.*;
 import ru.semavin.bot.service.schedules.ScheduleService;
+import ru.semavin.bot.service.users.UserApiService;
 import ru.semavin.bot.service.users.profile.ProfileEditingService;
 import ru.semavin.bot.service.users.profile.ProfileService;
 import ru.semavin.bot.service.users.register.RegistrationStateService;
@@ -20,13 +21,11 @@ import ru.semavin.bot.service.users.register.UserRegistrationService;
 import ru.semavin.bot.service.users.UserService;
 import ru.semavin.bot.util.CalendarUtils;
 import ru.semavin.bot.util.KeyboardUtils;
-import ru.semavin.bot.util.exceptions.UserNotFoundException;
 
 import java.time.DayOfWeek;
 import java.time.LocalDate;
 import java.time.YearMonth;
 import java.util.*;
-import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutorService;
 
 @Slf4j
@@ -42,7 +41,9 @@ public class StarostaConsumer implements LongPollingUpdateConsumer {
     private final ProfileService profileService;
     private final ScheduleService scheduleService;
     private final ExecutorService executorService;
-
+    private final GroupService groupService;
+    private final UserApiService userApiService;
+    private final BotCommandHandler botCommand;
     @Override
     public void consume(List<Update> updates) {
         List<Update> stepUpdates = new ArrayList<>();
@@ -103,148 +104,8 @@ public class StarostaConsumer implements LongPollingUpdateConsumer {
             profileEditingService.processEditStep(chatId, text);
             return;
         }
-
-        switch (text.trim()) {
-            case "/start" -> {
-                userService.getUserForTelegramTag(from.getUserName())
-                        .thenCompose(userDTO -> getStartedAndCheck(chatId, from))
-                        .exceptionally(ex -> {
-                            if (ex.getCause().getCause() instanceof UserNotFoundException) {
-                                log.info("Пользователь не найден, начинаем регистрацию: {}", from.getUserName());
-                                messageSenderService.sendTextMessage(chatId, "В первый раз? Регистрируемся!");
-                                userRegistrationService.startRegistration(chatId, from.getId(), from);
-                            } else {
-                                log.error("Ошибка при получении пользователя: {}", ex.getMessage());
-                                messageSenderService.sendTextMessage(chatId, "Произошла ошибка, попробуйте позже.");
-                            }
-                            return null; // Возвращаем null, завершая цепочку
-                        });
-            }
-            case "Профиль" ->
-                    messageSenderService.sendButtonMessage(KeyboardUtils.createMessageMainMenu(chatId));
-
-            case "Настройки" ->
-                    messageSenderService.sendTextMessage(chatId, "Пока раздел не реализован...");
-
-            case "Помощь" ->
-                    messageSenderService.sendTextMessage(chatId, "Справочная информация...");
-
-            case "Посмотреть данные" ->
-                    profileService.viewProfile(chatId, from.getUserName());
-
-            case "Изменить данные" -> {
-                messageSenderService.sendTextMessage(chatId, "Если поле не нужно менять, напишите 'нет'");
-                profileEditingService.startEditingProfile(chatId, from.getUserName());
-            }
-
-            case "Назад" -> {
-                userService.getUserForTelegramTag(from.getUserName()).thenAccept(user -> {
-                    if (isStarosta(user)) {
-                        messageSenderService.sendButtonMessage(KeyboardUtils.createMessageStarostaMainMenu(chatId));
-                    } else {
-                        messageSenderService.sendButtonMessage(KeyboardUtils.createMessageBackMenu(chatId));
-                    }
-                }).exceptionally(e -> {
-                    log.error("Ошибка при обработке команды 'Назад': {}", e.getMessage());
-                    messageSenderService.sendTextMessage(chatId, "Ошибка при выполнении команды");
-                    return null;
-                });
-            }
-
-            case "Староста" -> {
-                userService.getUserForTelegramTag(from.getUserName()).thenAccept(user -> {
-                    if (isStarosta(user)) {
-                        messageSenderService.sendButtonMessage(KeyboardUtils.createMessageWithStarostaMenu(chatId));
-                    } else {
-                        messageSenderService.sendTextMessage(chatId, "Похоже, что Вы не староста!");
-                    }
-                }).exceptionally(e -> {
-                    log.error("Ошибка при проверке роли старосты: {}", e.getMessage());
-                    messageSenderService.sendTextMessage(chatId, "Ошибка при выполнении команды");
-                    return null;
-                });
-            }
-
-            case "Расписание" ->
-                    messageSenderService.sendButtonMessage(KeyboardUtils.createMessageScheduleMenu(chatId));
-
-            case "Сегодня" -> {
-                userService.getUserForTelegramTag(from.getUserName())
-                        .thenCompose(user -> scheduleService.getForToday(user.getGroupName()))
-                        .thenCompose(schedule -> messageSenderService.sendButtonMessage(
-                                SendMessage.builder()
-                                        .chatId(chatId)
-                                        .text(schedule)
-                                        .replyMarkup(KeyboardUtils.createMarkupWithTomorrow(LocalDate.now()))
-                                        .build()
-                        ))
-                        .exceptionally(e -> {
-                            log.error("Ошибка при получении расписания на сегодня: {}", e.getMessage());
-                            messageSenderService.sendTextMessage(chatId, "Ошибка получения расписания.");
-                            return null;
-                        });
-            }
-
-            case "На неделю" -> {
-                int neededWeek = CalendarUtils.getRelativeWeekNumber(LocalDate.now());
-
-                messageSenderService.sendButtonMessage(
-                        SendMessage.builder()
-                                .chatId(chatId)
-                                .text("📅 Выберите день недели:")
-                                .replyMarkup(CalendarUtils.buildWeekMessage(neededWeek))
-                                .build()
-                );
-            }
-
-            case "Неделя по номеру" -> {
-                messageSenderService.sendButtonMessage(
-                        SendMessage.builder()
-                                .chatId(chatId)
-                                .text("📅 Выберите месяц:")
-                                .replyMarkup(CalendarUtils.buildMonthsMarkup())
-                                .build()
-                );
-            }
-            case "День по дате" -> {
-                LocalDate now = LocalDate.now();
-                messageSenderService.sendButtonMessage(
-                        KeyboardUtils.createMessageWithInlineCalendar(chatId, now.getYear(), now.getMonthValue())
-                );
-            }
-
-            default ->
-                    messageSenderService.sendTextMessage(chatId, "Неизвестная команда. Нажмите кнопку меню или напишите /start.");
-        }
+        botCommand.handle(message);
     }
-
-    private CompletableFuture<Void> getStartedAndCheck(Long chatId, User from) {
-        // Предположим, нужно показать меню в зависимости от роли пользователя
-        return userService.getUserForTelegramTag(from.getUserName())
-                .thenCompose(userDTO -> {
-                    if (isStarosta(userDTO)) {
-                        return messageSenderService.sendButtonMessage(
-                                KeyboardUtils.createHelloMessageAndStarostaMainMenu(chatId)
-                        );
-                    } else {
-                        return messageSenderService.sendButtonMessage(
-                                KeyboardUtils.createHelloMessageAndMainMenu(chatId)
-                        );
-                    }
-                })
-
-                .thenAccept(resp -> {
-                    // здесь обычно ничего не возвращаем, метод Void
-                    log.info("Главное меню успешно отправлено пользователю {}", from.getUserName());
-                })
-                .exceptionally(e -> {
-                    log.error("Ошибка при проверке /start: {}", e.getMessage(), e);
-                    messageSenderService.sendTextMessage(chatId, "Какая то проблема:/");
-                    return null;
-                });
-
-    }
-
     private void handleCallback(CallbackQuery callbackQuery) {
         MaybeInaccessibleMessage maybeMsg = callbackQuery.getMessage();
         String data = callbackQuery.getData();
@@ -468,9 +329,7 @@ public class StarostaConsumer implements LongPollingUpdateConsumer {
     }
 
 
-    private boolean isStarosta(UserDTO user) {
-        return user != null && "STAROSTA".equalsIgnoreCase(user.getRole());
-    }
+
 
     private List<LocalDate> getWeekDates(LocalDate startDate) {
         List<LocalDate> dates = new ArrayList<>();

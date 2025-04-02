@@ -67,7 +67,7 @@ public class ScheduleService {
         for (ScheduleDTO dto : schedule) {
             sb.append(String.format("📘 %s (%s)\n%s – %s | Ауд: %s\n👨‍🏫 %s\n\n",
                     dto.getSubjectName(),
-                    dto.getLessonType(),
+                    getStringForLessonType(dto.getLessonType()),
                     dto.getStartTime(),
                     dto.getEndTime(),
                     dto.getClassroom(),
@@ -75,7 +75,15 @@ public class ScheduleService {
         }
         return sb.toString();
     }
-
+    private String getStringForLessonType(String lessonType){
+        return switch (lessonType) {
+            case "LECTURE" -> "ЛК";
+            case "PRACTICAL" -> "ПЗ";
+            case "EXAM" -> "Экзамен";
+            case "LAB" -> "ЛР";
+            default -> lessonType;
+        };
+    }
     private String buildScheduleTextForWeek(List<ScheduleDTO> schedule,
                                             String localDateStartWeek,
                                             String localDateEndWeek) {

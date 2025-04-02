@@ -3,6 +3,7 @@ package ru.semavin.bot.util;
 import org.telegram.telegrambots.meta.api.methods.send.SendMessage;
 import org.telegram.telegrambots.meta.api.methods.updatingmessages.EditMessageText;
 import org.telegram.telegrambots.meta.api.objects.replykeyboard.InlineKeyboardMarkup;
+import org.telegram.telegrambots.meta.api.objects.replykeyboard.ReplyKeyboard;
 import org.telegram.telegrambots.meta.api.objects.replykeyboard.ReplyKeyboardMarkup;
 import org.telegram.telegrambots.meta.api.objects.replykeyboard.buttons.InlineKeyboardButton;
 import org.telegram.telegrambots.meta.api.objects.replykeyboard.buttons.InlineKeyboardRow;
@@ -70,7 +71,7 @@ public class KeyboardUtils {
 
         KeyboardRow row2 = new KeyboardRow();
         row2.add(KeyboardButton.builder().text("Назад").build());
-
+        row2.add(KeyboardButton.builder().text("Настройки").build());
         List<KeyboardRow> keyboard = new ArrayList<>();
         keyboard.add(row1);
         keyboard.add(row2);
@@ -157,7 +158,7 @@ public class KeyboardUtils {
                 .text("Оповещение")
                 .build());
         row2.add(KeyboardButton.builder()
-                .text("Настройки")
+                .text("Я не староста")
                 .build());
         KeyboardRow row3 = new KeyboardRow();
         row2.add(KeyboardButton.builder()
@@ -327,4 +328,18 @@ public class KeyboardUtils {
         return InlineKeyboardMarkup.builder().keyboard(List.of(row)).build();
     }
 
+    public static ReplyKeyboard ActionsMenu() {
+        KeyboardRow row1 = new KeyboardRow();
+        row1.add(KeyboardButton.builder().text("Я староста").build());
+        row1.add(KeyboardButton.builder().text("Кто староста?").build());
+        KeyboardRow row2 = new KeyboardRow();
+        row2.add(KeyboardButton.builder().text("Назад").build());
+
+        return ReplyKeyboardMarkup.builder()
+                .keyboard(List.of(row1, row2))
+                .resizeKeyboard(true)
+                .oneTimeKeyboard(false)
+                .selective(true)
+                .build();
+    }
 }
