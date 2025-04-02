@@ -4,7 +4,7 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import ru.semavin.bot.dto.UserDTO;
-import ru.semavin.bot.service.GroupService;
+import ru.semavin.bot.service.groups.GroupService;
 import ru.semavin.bot.service.MessageSenderService;
 import ru.semavin.bot.service.users.UserService;
 import ru.semavin.bot.util.KeyboardUtils;

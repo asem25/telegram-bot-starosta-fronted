@@ -12,6 +12,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.web.client.HttpClientErrorException;
 import org.springframework.web.client.RestClient;
 import ru.semavin.bot.dto.UserDTO;
+import ru.semavin.bot.util.exceptions.BadRequestException;
 import ru.semavin.bot.util.exceptions.EntityNotFoundException;
 
 
@@ -44,11 +45,34 @@ public class UserApiService {
                         .body(dto)
                         .retrieve()
                         .body(String.class);
-            } catch (Exception e) {
-                log.error("Ошибка при регистрации пользователя в API", e);
-                throw new RuntimeException(e);
+            } catch (HttpClientErrorException.NotFound notFound) {
+                log.error("Ошибка при регистрации пользователя: {}", notFound.getMessage());
+                String responseBody = notFound.getResponseBodyAsString();
+                try {
+                    JsonNode root = objectMapper.readTree(responseBody);
+                    String errorDescription = root.path("error_description").asText();
+                    log.info("Error description: {}", errorDescription);
+                    throw new EntityNotFoundException(errorDescription);
+                } catch (HttpClientErrorException.BadRequest badRequest) {
+                    log.error("Ошибка при регистрации пользователя: {}", badRequest.getMessage());
+                    String Body = badRequest.getResponseBodyAsString();
+                    try {
+                        JsonNode root = objectMapper.readTree(Body);
+                        String errorDescription = root.path("error_description").asText();
+                        log.info("Error description: {}", errorDescription);
+                        throw new BadRequestException(errorDescription);
+                    } catch (IOException exec) {
+                        log.error("Ошибка парсинга ответа: {}", exec.getMessage());
+                    }
+
+                    return null;
+                } catch (Exception laste) {
+                    log.error("Ошибка при получении пользователя: ", laste);
+                    throw new RuntimeException(notFound);
+                }
             }
         }, executorService);
+
     }
 
     @Cacheable(value = "users", key = "#id")

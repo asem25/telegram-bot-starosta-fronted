@@ -10,6 +10,7 @@ import ru.semavin.bot.service.requests.RequestService;
 import ru.semavin.bot.service.users.UserApiService;
 import ru.semavin.bot.service.users.UserService;
 import ru.semavin.bot.util.KeyboardUtils;
+import ru.semavin.bot.util.exceptions.BadRequestException;
 import ru.semavin.bot.util.exceptions.EntityNotFoundException;
 
 @Slf4j
@@ -56,6 +57,7 @@ public class UserRegistrationService {
     }
 
     private void saveGroup(Long chatId, String groupName) {
+        //TODO Если возникла ошибка нужно начать регистрацию
         UserDTO data = stateService.getData(chatId);
         data.setGroupName(groupName);
         stateService.setStep(chatId, RegistrationStep.FINISHED);
@@ -71,6 +73,9 @@ public class UserRegistrationService {
             log.error("Ошибка регистрации в API", error);
             {
                 if (error.getCause() instanceof EntityNotFoundException) {
+                    messageSenderService.sendTextMessage(chatId, String.format("Ошибка при сохранении данных: %s. Введите /start для начала регистрации"
+                            , error.getCause().getMessage()));
+                }else if (error.getCause() instanceof BadRequestException){
                     messageSenderService.sendTextMessage(chatId, String.format("Ошибка при сохранении данных: %s. Введите /start для начала регистрации"
                             , error.getCause().getMessage()));
                 }else {

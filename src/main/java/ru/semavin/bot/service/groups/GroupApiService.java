@@ -59,6 +59,21 @@ public class GroupApiService {
             }
         }, executorService);
     }
+    public CompletableFuture<GroupDTO> getGroup(String groupName) {
+        return CompletableFuture.supplyAsync(() -> {
+            try {
+                log.info("Получение группы: {}", groupName);
+                return restClient.get()
+                        .uri(url + "/groups?groupName={group}", groupName)
+                        .header("API-KEY", apiKey)
+                        .retrieve()
+                        .body(GroupDTO.class);
+            } catch (Exception e) {
+                log.error("Ошибка при удалении старосты", e);
+                throw new RuntimeException(e);
+            }
+        }, executorService);
+    }
 
     public CompletableFuture<Optional<UserDTO>> getStarosta(String groupName) {
         return CompletableFuture.supplyAsync(() -> {
