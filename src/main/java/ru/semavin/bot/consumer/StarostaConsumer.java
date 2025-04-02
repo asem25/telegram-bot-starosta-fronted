@@ -12,6 +12,7 @@ import org.telegram.telegrambots.meta.api.objects.replykeyboard.InlineKeyboardMa
 import ru.semavin.bot.botcommands.BotCommandHandler;
 import ru.semavin.bot.enums.RegistrationStep;
 import ru.semavin.bot.service.*;
+import ru.semavin.bot.service.groups.GroupService;
 import ru.semavin.bot.service.schedules.ScheduleService;
 import ru.semavin.bot.service.users.UserApiService;
 import ru.semavin.bot.service.users.profile.ProfileEditingService;
@@ -215,8 +216,8 @@ public class StarostaConsumer implements LongPollingUpdateConsumer {
         }
 
         if (data.startsWith("BACK_WEEK_")) {
-            int neededWeek = CalendarUtils.getRelativeWeekNumber(LocalDate.now());
-
+            LocalDate weekStart = LocalDate.parse(data.replace("BACK_WEEK_", ""));
+            int neededWeek = CalendarUtils.getRelativeWeekNumber(weekStart);
             messageSenderService.editMessageText(
                     KeyboardUtils.createEditMessage(
                             chatId.toString(),
