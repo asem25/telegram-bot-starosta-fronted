@@ -15,5 +15,6 @@ public class UserDTO {
     private String role;
     private String firstName;
     private String lastName;
+    private String patronymic;
     private String groupName;
 }

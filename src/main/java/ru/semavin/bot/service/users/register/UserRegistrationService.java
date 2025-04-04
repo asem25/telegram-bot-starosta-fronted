@@ -21,12 +21,18 @@ public class UserRegistrationService {
     private final RegistrationStateService stateService;
     private final MessageSenderService messageSenderService;
     private final UserService userService;
+    private boolean isTeacher = false;
     public void startRegistration(Long chatId, Long telegramId, org.telegram.telegrambots.meta.api.objects.User user) {
         UserDTO data = stateService.getData(chatId);
         data.setTelegramId(telegramId);
         data.setUsername(user.getUserName());
-        stateService.setStep(chatId, RegistrationStep.ENTER_FIRSTNAME);
-        messageSenderService.sendTextMessage(chatId, "Введите ваше имя:");
+        if (isTeacher) {
+            stateService.setStep(chatId, RegistrationStep.ENTER_FIRSTNAME);
+            messageSenderService.sendTextMessage(chatId, "Введите ваше имя:");
+        }else{
+            stateService.setStep(chatId, RegistrationStep.ENTER_GROUP);
+            messageSenderService.sendTextMessage(chatId, "Введите вашу группу:");
+        }
         log.info("Начата регистрация для чата {}. Запрошено имя пользователя.", chatId);
     }
 
@@ -60,13 +66,13 @@ public class UserRegistrationService {
         //TODO Если возникла ошибка нужно начать регистрацию
         UserDTO data = stateService.getData(chatId);
         data.setGroupName(groupName);
-        stateService.setStep(chatId, RegistrationStep.FINISHED);
         messageSenderService.sendTextMessage(chatId, "Регистрация завершена! Сохраняем ваши данные...");
         log.info("Сохранена группа {} для чата {}. Завершаем регистрацию.", groupName, chatId);
 
         userService.registerUser(data).thenAccept(response -> {
             log.info("Ответ от API: {}", response);
             messageSenderService.sendTextMessage(chatId, "Вы успешно зарегистрированы!");
+            stateService.setStep(chatId, RegistrationStep.FINISHED);
             stateService.clear(chatId);
             messageSenderService.sendButtonMessage(KeyboardUtils.createMessageAfterRegistration(chatId));
         }).exceptionally(error -> {
@@ -75,6 +81,9 @@ public class UserRegistrationService {
                 if (error.getCause() instanceof EntityNotFoundException) {
                     messageSenderService.sendTextMessage(chatId, String.format("Ошибка при сохранении данных: %s. Введите /start для начала регистрации"
                             , error.getCause().getMessage()));
+                    //todo проверка на учителя
+                    messageSenderService.sendTextMessage(chatId, "Продолжите регистрацию!");
+                    return null;
                 }else if (error.getCause() instanceof BadRequestException){
                     messageSenderService.sendTextMessage(chatId, String.format("Ошибка при сохранении данных: %s. Введите /start для начала регистрации"
                             , error.getCause().getMessage()));

@@ -33,7 +33,11 @@ public class CacheConfig {
                         .expireAfterWrite(3, TimeUnit.DAYS)
                         .maximumSize(500)
                         .buildAsync());
-
+        cacheManager.registerCustomCache("deadlineMessages",
+                Caffeine.newBuilder()
+                        .expireAfterWrite(1, TimeUnit.DAYS)
+                        .maximumSize(15)
+                        .buildAsync());
         cacheManager.registerCustomCache("users",
                 Caffeine.newBuilder()
                         .expireAfterWrite(1, TimeUnit.HOURS)

@@ -1,5 +1,7 @@
 package ru.semavin.bot.service.deadline;
 
+import lombok.Builder;
+import lombok.Data;
 import org.springframework.stereotype.Service;
 import ru.semavin.bot.dto.DeadlineDTO;
 
@@ -7,6 +9,7 @@ import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 
 @Service
@@ -18,7 +21,8 @@ public class DeadLineCreationService {
         RECIPIENTS,
         COMPLETE
     }
-
+    @Data
+    @Builder
     public static class Draft {
         private String username;
         private String groupName;
@@ -29,11 +33,13 @@ public class DeadLineCreationService {
 
         public DeadlineDTO toDTO() {
             return DeadlineDTO.builder()
+                    .uuid(UUID.randomUUID())
+                    .username(username)
                     .title(title)
                     .description(description)
                     .dueDate(date)
                     .groupName(groupName)
-                    .recipients(recipients)
+                    .receivers( recipients)
                     .build();
         }
     }
@@ -41,9 +47,12 @@ public class DeadLineCreationService {
     private final Map<Long, Step> currentStep = new ConcurrentHashMap<>();
     private final Map<Long, Draft> userDrafts = new ConcurrentHashMap<>();
 
-    public void start(Long chatId, String username) {
-        Draft draft = new Draft();
-        draft.username = username;
+    public void start(Long chatId, String username, String groupName) {
+        Draft draft = Draft.builder()
+                .username(username)
+                .groupName(groupName)
+                .build();
+
         userDrafts.put(chatId, draft);
         currentStep.put(chatId, Step.TITLE);
     }

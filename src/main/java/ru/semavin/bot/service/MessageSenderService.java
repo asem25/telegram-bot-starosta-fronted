@@ -43,7 +43,24 @@ public class MessageSenderService {
             return null;
         });
     }
+    public CompletableFuture<String> sendMessageWithMarkDown(Long chatId, String text) {
+        return CompletableFuture.supplyAsync(() -> {
+            SendMessage message = SendMessage.builder()
+                    .chatId(chatId.toString())
+                    .text(text)
+                    .parseMode("Markdown")
+                    .build();
 
+            return restClient.post()
+                    .uri(TELEGRAM_API_BASE + botToken + "/sendMessage")
+                    .body(message)
+                    .retrieve()
+                    .body(String.class);
+        }, executorService).exceptionally(ex -> {
+            log.error("Ошибка при отправке сообщения: {}", ex.getMessage());
+            return null;
+        });
+    }
     public CompletableFuture<String> sendButtonMessage(SendMessage message) {
         return CompletableFuture.supplyAsync(() -> restClient.post()
                         .uri(TELEGRAM_API_BASE + botToken + "/sendMessage")
@@ -63,7 +80,13 @@ public class MessageSenderService {
                     return null;
                 });
     }
-
+    public void sendTextWithMarkdown(Long chaId, String text){
+        sendMessageWithMarkDown(chaId, text).thenAccept(response -> log.info("Сообщение отправлено: {}", text))
+                .exceptionally(ex -> {
+                    log.error("Ошибка при отправке сообщения: {}", ex.getMessage());
+                    return null;
+                });
+    }
     public CompletableFuture<String> editMessageMarkup(EditMessageReplyMarkup markup) {
         return CompletableFuture.supplyAsync(() -> restClient.post()
                         .uri(TELEGRAM_API_BASE + botToken + "/editMessageReplyMarkup")

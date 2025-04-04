@@ -20,7 +20,12 @@ public class ProfileService {
     private final GroupService groupService;
     public void viewProfile(Long chatId, String telegramTag) {
         userService.getUserForTelegramTag(telegramTag).thenAccept(userDTO -> {
-            String messageText = buildProfileViewText(userDTO);
+            String messageText;
+            if (userDTO.getRole().equalsIgnoreCase("TEACHER")){
+                messageText =  buildProfileViewTextForTeacher(userDTO);
+            }else {
+                messageText =  buildProfileViewTextForStudent(userDTO);
+            }
             messageSenderService.sendMessage(chatId, messageText);
         }).exceptionally(e -> {
             log.error("Ошибка при получении данных пользователя: ", e);
@@ -28,15 +33,16 @@ public class ProfileService {
             return null;
         });
     }
+
+
+
     public CompletableFuture<Object> tryBecomeStarostaIfNoOneElse(Long chatId, String telegramUsername) {
         return userService.getUserForTelegramTag(telegramUsername)
                 .thenCompose(currentUser ->
                         groupService.getStarosta(currentUser.getGroupName())
                                 .thenCompose(optionalStarosta -> {
                                     if (optionalStarosta.isPresent()) {
-                                        UserDTO starosta = optionalStarosta.get();
-                                        String msg = String.format("В вашей группе уже есть староста: %s %s.",
-                                                starosta.getFirstName(), starosta.getLastName());
+                                        String msg = ("В вашей группе уже есть староста!");
                                         return messageSenderService.sendMessage(chatId, msg).thenApply(r -> null);
                                     } else {
                                         return groupService.setStarosta(currentUser.getGroupName(), currentUser.getUsername())
@@ -97,20 +103,28 @@ public class ProfileService {
                     return null;
                 });
     }
-    private String buildProfileViewText(UserDTO userDTO) {
+    private String buildProfileViewTextForTeacher(UserDTO userDTO) {
         return String.format("""
                 Ваш профиль:
                 Имя: %s
                 Фамилия: %s
-                Группа: %s
+                Отчество: %s
                 Telegram: @%s
-                %s
                 """,
                 userDTO.getFirstName(),
                 userDTO.getLastName(),
+                userDTO.getPatronymic(),
+                userDTO.getUsername()
+        );
+    }
+    private String buildProfileViewTextForStudent(UserDTO userDTO) {
+        return String.format("""
+                Ваш профиль:
+                Группа: %s
+                Telegram: @%s
+                """,
                 userDTO.getGroupName(),
-                userDTO.getUsername(),
-                userDTO.getRole().equalsIgnoreCase("starosta") ? "Роль: Староста" : ""
+                userDTO.getUsername()
         );
     }
 }

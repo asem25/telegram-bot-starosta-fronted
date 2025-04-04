@@ -23,7 +23,7 @@ public class PingAPIService {
     public void pingDailyApi() {
         log.info("Telegram api ping starting");
         try {
-            ResponseEntity<String> response = restTemplate.getForEntity(apiUrl + "/", String.class);
+            ResponseEntity<String> response = restTemplate.getForEntity(apiUrl + "/check", String.class);
             if (response.getStatusCode().is2xxSuccessful()) {
                 log.info("Telegram api ping finished success: {}", response.getBody());
             }else{

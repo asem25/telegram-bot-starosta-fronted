@@ -24,8 +24,13 @@ public class ProfileEditingService {
         userService.getUserForTelegramTag(telegramTag).thenAccept(userDTO -> {
             messageSenderService.sendTextMessage(chatId, "Если поле менять не нужно введите 'Нет'");
             editProfileStateService.initData(chatId, userDTO);
-            editProfileStateService.setStep(chatId, EditStep.ENTER_FIRSTNAME);
-            messageSenderService.sendTextMessage(chatId, "Введите новое имя (текущее: " + userDTO.getFirstName() + ")");
+            if (userDTO.getRole().equalsIgnoreCase("TEACHER")) {
+                editProfileStateService.setStep(chatId, EditStep.ENTER_FIRSTNAME);
+                messageSenderService.sendTextMessage(chatId, "Введите новое имя (текущее: " + userDTO.getFirstName() + ")");
+            }else {
+                editProfileStateService.setStep(chatId, EditStep.ENTER_GROUP);
+                messageSenderService.sendTextMessage(chatId, "Введите новую группу(текущая: " + userDTO.getGroupName() + ")");
+            }
         }).exceptionally(error -> {
             messageSenderService.sendTextMessage(chatId, "Не удалось загрузить профиль для редактирования.");
             log.error("Ошибка при загрузке профиля: ", error);

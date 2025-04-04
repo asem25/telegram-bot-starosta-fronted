@@ -13,12 +13,13 @@ import java.util.UUID;
 @NoArgsConstructor
 @Builder
 public class DeadlineDTO {
-    private UUID id;                  // Уникальный ID дедлайна
+    private UUID uuid;                  // Уникальный ID дедлайна
     private String title;             // Название задания
     private String description;       // Подробности
     private LocalDate dueDate;        // Срок
-    private String groupName;         // Назначено для группы
-    private List<String> recipients;  // Telegram username'ы получателей
+    private String groupName;
+    private String username;
+    private List<String> receivers;  // Telegram username'ы получателей
     private boolean notified3Days;    // Было ли уведомление за 3 дня
     private boolean notified1Day;
 }

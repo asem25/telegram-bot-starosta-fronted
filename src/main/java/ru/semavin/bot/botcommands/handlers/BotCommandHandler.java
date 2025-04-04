@@ -1,9 +1,10 @@
-package ru.semavin.bot.botcommands;
+package ru.semavin.bot.botcommands.handlers;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
 import org.telegram.telegrambots.meta.api.objects.message.Message;
+import ru.semavin.bot.botcommands.BotCommand;
 
 import java.util.List;
 import java.util.concurrent.CompletableFuture;

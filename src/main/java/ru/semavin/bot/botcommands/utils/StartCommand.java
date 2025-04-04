@@ -53,7 +53,7 @@ public class StartCommand implements BotCommand {
                     // Если пользователь не найден — начинаем регистрацию
                     if (ex.getCause() != null && ex.getCause().getCause() instanceof EntityNotFoundException) {
                         log.info("Пользователь не найден, начинаем регистрацию: {}", username);
-                        messageSenderService.sendTextMessage(chatId, "В первый раз? Регистрируемся!");
+                        messageSenderService.sendTextMessage(chatId, "В первый раз!");
                         userRegistrationService.startRegistration(chatId, message.getFrom().getId(), message.getFrom());
                     } else {
                         // Логируем прочие ошибки

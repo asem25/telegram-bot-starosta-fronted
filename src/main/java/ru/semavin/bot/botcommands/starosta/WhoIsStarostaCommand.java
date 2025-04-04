@@ -21,7 +21,8 @@ public class WhoIsStarostaCommand implements BotCommand {
      */
     @Override
     public boolean canHandle(Message message) {
-        return "Кто староста?".equalsIgnoreCase(message.getText().trim());
+//        return "Кто староста?".equalsIgnoreCase(message.getText().trim());
+        return false;
     }
 
     /**

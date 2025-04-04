@@ -12,10 +12,7 @@ import org.telegram.telegrambots.meta.api.objects.replykeyboard.buttons.Keyboard
 
 import java.time.LocalDate;
 import java.time.format.TextStyle;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Locale;
-import java.util.Map;
+import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 
 /**
@@ -150,12 +147,12 @@ public class KeyboardUtils {
                 .text("Заявки")
                 .build());
         row1.add(KeyboardButton.builder()
-                .text("Дедлайны")
+                .text("Добавить дедлайн")
                 .build());
 
         KeyboardRow row2 = new KeyboardRow();
         row2.add(KeyboardButton.builder()
-                .text("Оповещение")
+                .text("Добавить оповещение")
                 .build());
         row2.add(KeyboardButton.builder()
                 .text("Я не староста")
@@ -171,6 +168,19 @@ public class KeyboardUtils {
                 .selective(true)
                 .build();
 
+    }
+    public static InlineKeyboardMarkup buildEditDeleteButtons(UUID deadlineId) {
+
+        InlineKeyboardButton delete = InlineKeyboardButton.builder()
+                .text("❌ Удалить")
+                .callbackData("DELETE_DEADLINE_" + deadlineId)
+                .build();
+
+        InlineKeyboardRow row = new InlineKeyboardRow(List.of( delete));
+
+        return InlineKeyboardMarkup.builder()
+                .keyboard(List.of(row))
+                .build();
     }
     public static SendMessage createMessageMainMenu(Long chaId){
         return SendMessage.builder()
@@ -331,7 +341,6 @@ public class KeyboardUtils {
     public static ReplyKeyboard ActionsMenu() {
         KeyboardRow row1 = new KeyboardRow();
         row1.add(KeyboardButton.builder().text("Я староста").build());
-        row1.add(KeyboardButton.builder().text("Кто староста?").build());
         KeyboardRow row2 = new KeyboardRow();
         row2.add(KeyboardButton.builder().text("Назад").build());
 
@@ -342,4 +351,5 @@ public class KeyboardUtils {
                 .selective(true)
                 .build();
     }
+
 }

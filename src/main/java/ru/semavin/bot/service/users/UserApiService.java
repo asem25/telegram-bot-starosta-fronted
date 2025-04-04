@@ -53,22 +53,24 @@ public class UserApiService {
                     String errorDescription = root.path("error_description").asText();
                     log.info("Error description: {}", errorDescription);
                     throw new EntityNotFoundException(errorDescription);
-                } catch (HttpClientErrorException.BadRequest badRequest) {
-                    log.error("Ошибка при регистрации пользователя: {}", badRequest.getMessage());
-                    String Body = badRequest.getResponseBodyAsString();
-                    try {
-                        JsonNode root = objectMapper.readTree(Body);
-                        String errorDescription = root.path("error_description").asText();
-                        log.info("Error description: {}", errorDescription);
-                        throw new BadRequestException(errorDescription);
-                    } catch (IOException exec) {
+                }  catch (IOException exec) {
                         log.error("Ошибка парсинга ответа: {}", exec.getMessage());
                     }
 
                     return null;
-                } catch (Exception laste) {
+                }
+                catch (HttpClientErrorException.BadRequest badRequest) {
+                log.error("Ошибка при регистрации пользователя: {}", badRequest.getMessage());
+                String Body = badRequest.getResponseBodyAsString();
+                try {
+                    JsonNode root = objectMapper.readTree(Body);
+                    String errorDescription = root.path("error_description").asText();
+                    log.info("Error description: {}", errorDescription);
+                    throw new BadRequestException(errorDescription);
+                }
+                catch (Exception laste) {
                     log.error("Ошибка при получении пользователя: ", laste);
-                    throw new RuntimeException(notFound);
+                    throw new RuntimeException(laste);
                 }
             }
         }, executorService);

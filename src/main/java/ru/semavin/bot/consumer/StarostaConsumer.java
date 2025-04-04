@@ -9,14 +9,14 @@ import org.telegram.telegrambots.meta.api.objects.*;
 import org.telegram.telegrambots.meta.api.objects.message.MaybeInaccessibleMessage;
 import org.telegram.telegrambots.meta.api.objects.message.Message;
 import org.telegram.telegrambots.meta.api.objects.replykeyboard.InlineKeyboardMarkup;
-import ru.semavin.bot.botcommands.BotCommandHandler;
+import ru.semavin.bot.botcommands.handlers.BotCommandHandler;
+import ru.semavin.bot.botcommands.handlers.DeadlineCreationStepHandler;
 import ru.semavin.bot.enums.RegistrationStep;
 import ru.semavin.bot.service.*;
-import ru.semavin.bot.service.groups.GroupService;
+import ru.semavin.bot.service.deadline.DeadLineCreationService;
+import ru.semavin.bot.service.deadline.DeadlineService;
 import ru.semavin.bot.service.schedules.ScheduleService;
-import ru.semavin.bot.service.users.UserApiService;
 import ru.semavin.bot.service.users.profile.ProfileEditingService;
-import ru.semavin.bot.service.users.profile.ProfileService;
 import ru.semavin.bot.service.users.register.RegistrationStateService;
 import ru.semavin.bot.service.users.register.UserRegistrationService;
 import ru.semavin.bot.service.users.UserService;
@@ -39,12 +39,12 @@ public class StarostaConsumer implements LongPollingUpdateConsumer {
     private final UserService userService;
     private final UserRegistrationService userRegistrationService;
     private final ProfileEditingService profileEditingService;
-    private final ProfileService profileService;
     private final ScheduleService scheduleService;
     private final ExecutorService executorService;
-    private final GroupService groupService;
-    private final UserApiService userApiService;
     private final BotCommandHandler botCommand;
+    private final DeadLineCreationService deadLineCreationService;
+    private final DeadlineCreationStepHandler deadlineCreationStepHandler;
+    private final DeadlineService deadlineService;
     @Override
     public void consume(List<Update> updates) {
         List<Update> stepUpdates = new ArrayList<>();
@@ -52,7 +52,8 @@ public class StarostaConsumer implements LongPollingUpdateConsumer {
 
         for (Update update : updates) {
             Long chatId = getChatId(update);
-            if (inRegistrationOrEdit(chatId)) {
+            //todo добавить дедлайны
+            if (isStep(chatId) ) {
                 stepUpdates.add(update);
             } else {
                 normalUpdates.add(update);
@@ -66,8 +67,8 @@ public class StarostaConsumer implements LongPollingUpdateConsumer {
         );
     }
 
-    private boolean inRegistrationOrEdit(Long chatId) {
-        return stateService.getStep(chatId) != RegistrationStep.NONE || profileEditingService.isEditing(chatId);
+    private boolean isStep(Long chatId) {
+        return stateService.getStep(chatId) != RegistrationStep.NONE || profileEditingService.isEditing(chatId) || deadLineCreationService.getStep(chatId) != DeadLineCreationService.Step.COMPLETE;
     }
 
     private Long getChatId(Update update) {
@@ -105,6 +106,11 @@ public class StarostaConsumer implements LongPollingUpdateConsumer {
             profileEditingService.processEditStep(chatId, text);
             return;
         }
+        if (deadLineCreationService.getStep(chatId) != DeadLineCreationService.Step.COMPLETE) {
+            deadlineCreationStepHandler.handleStep(message);
+            return;
+        }
+
         botCommand.handle(message);
     }
     private void handleCallback(CallbackQuery callbackQuery) {
@@ -168,6 +174,15 @@ public class StarostaConsumer implements LongPollingUpdateConsumer {
                         log.error("Ошибка при навигации календаря: {}", e.getMessage());
                         return null;
                     });
+            return;
+        }
+        if (data.startsWith("DELETE_DEADLINE_")) {
+            UUID id = UUID.fromString(data.replace("DELETE_DEADLINE_", ""));
+            boolean deleted = deadlineService.deleteDeadline(id);
+            String text = deleted ? "✅ Дедлайн удалён." : "⚠️ Не удалось найти дедлайн.";
+            messageSenderService.editMessageText(
+                    KeyboardUtils.createEditMessage(chatId.toString(), messageId, text, null)
+            );
             return;
         }
 
