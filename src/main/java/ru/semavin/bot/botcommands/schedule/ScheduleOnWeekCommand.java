@@ -7,7 +7,7 @@ import org.telegram.telegrambots.meta.api.methods.send.SendMessage;
 import org.telegram.telegrambots.meta.api.objects.message.Message;
 import ru.semavin.bot.botcommands.BotCommand;
 import ru.semavin.bot.service.MessageSenderService;
-import ru.semavin.bot.util.CalendarUtils;
+import ru.semavin.bot.util.calendar.CalendarUtils;
 
 import java.time.LocalDate;
 import java.util.concurrent.CompletableFuture;

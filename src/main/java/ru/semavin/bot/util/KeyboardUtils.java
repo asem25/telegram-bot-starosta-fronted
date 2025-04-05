@@ -9,11 +9,13 @@ import org.telegram.telegrambots.meta.api.objects.replykeyboard.buttons.InlineKe
 import org.telegram.telegrambots.meta.api.objects.replykeyboard.buttons.InlineKeyboardRow;
 import org.telegram.telegrambots.meta.api.objects.replykeyboard.buttons.KeyboardButton;
 import org.telegram.telegrambots.meta.api.objects.replykeyboard.buttons.KeyboardRow;
+import ru.semavin.bot.dto.SkipNotificationDTO;
+import ru.semavin.bot.util.calendar.CalendarUtils;
 
 import java.time.LocalDate;
+import java.time.YearMonth;
 import java.time.format.TextStyle;
 import java.util.*;
-import java.util.concurrent.ConcurrentHashMap;
 
 /**
  * Утилитный класс для создания inline‑клавиатур для Telegram‑бота.
@@ -89,21 +91,85 @@ public class KeyboardUtils {
         row1.add(KeyboardButton.builder()
                 .text("Расписание")
                 .build());
-        row1.add(KeyboardButton.builder()
+
+        KeyboardRow row2 = new KeyboardRow();
+        row2.add(KeyboardButton.builder()
+                .text("Дедлайны")
+                .build());
+        row2.add(KeyboardButton.builder()
                 .text("Староста")
                 .build());
-        // Вторая строка с одной кнопкой
-        return getMainRowsMainMenu(row1);
+
+
+        return ReplyKeyboardMarkup.builder()
+                .keyboard(List.of(row1, row2))
+                .resizeKeyboard(true)    // Автоматически подгоняет размер клавиатуры под экран
+                .oneTimeKeyboard(false)    // Клавиатура остается видимой, пока пользователь ее не скроет
+                .selective(true)           // Показывает клавиатуру только нужным пользователям в групповом чате
+                .build();
 
     }
+    public static InlineKeyboardMarkup buildCalendarWithConfirm(YearMonth ym, LocalDate from, LocalDate to) {
+        // 1) Получаем готовую клавиатуру календаря
+        InlineKeyboardMarkup normalCalendar = CalendarUtils.buildAbsenceCalendar(ym.getYear(), ym.getMonthValue());
+        // 2) Копируем её строки
+        //    В официальной бибилиотеке TelegramBots getKeyboard() возвращает List<List<InlineKeyboardButton>>
+        List<InlineKeyboardRow> rows = new ArrayList<>(normalCalendar.getKeyboard());
 
+        // 3) Создаём новую «строку» (List<InlineKeyboardButton>) для кнопок Подтвердить/Отменить
+        InlineKeyboardRow confirmRow = new InlineKeyboardRow();
+        confirmRow.add(
+                InlineKeyboardButton.builder()
+                        .text("✅ Подтвердить")
+                        .callbackData("ABSENCE_CONFIRM")
+                        .build()
+        );
+        confirmRow.add(
+                InlineKeyboardButton.builder()
+                        .text("❌ Отменить")
+                        .callbackData("ABSENCE_CANCEL")
+                        .build()
+        );
+
+        // 4) Добавляем новую строку с кнопками в общий список
+        rows.add(confirmRow);
+
+        // 5) Возвращаем обновлённый InlineKeyboardMarkup
+        return InlineKeyboardMarkup.builder().keyboard(rows).build();
+    }
+    /**
+     * На каждый пропуск – одна кнопка \"Удалить\"
+     * callbackData будет вида: DELETE_MISSED_username_2025-04-01_2025-04-02
+     */
+    public static InlineKeyboardMarkup buildMissedInlineKeyboard(List<SkipNotificationDTO> absences) {
+        InlineKeyboardRow rows = new InlineKeyboardRow();
+
+        for (SkipNotificationDTO dto : absences) {
+            //TODO сделать клавишу удаления поменьше
+            String from = dto.getFromDate().toString();   // \"2025-04-01\"
+            String to   = dto.getToDate().toString();     // \"2025-04-02\"
+
+            // Пример: DELETE_MISSED_petya_2025-04-01_2025-04-02
+            String callbackData = "DELETE_MISSED_" + dto.getUsername() + "_" + from + "_" + to;
+
+            // Текст кнопки: \"Удалить пропуск (1.04 — 2.04)\", либо короче
+            InlineKeyboardButton deleteButton = InlineKeyboardButton.builder()
+                    .text("Удалить пропуск (" + from + " - " + to + ")")
+                    .callbackData(callbackData)
+                    .build();
+
+            rows.add(deleteButton);
+        }
+
+        return InlineKeyboardMarkup.builder().keyboard(List.of(rows)).build();
+    }
     private static ReplyKeyboardMarkup getMainRowsMainMenu(KeyboardRow row1) {
         KeyboardRow row2 = new KeyboardRow();
         row2.add(KeyboardButton.builder()
                 .text("Дедлайны")
                 .build());
         row2.add(KeyboardButton.builder()
-                .text("Оповещения")
+                .text("Пропущу")
                 .build());
 
         return ReplyKeyboardMarkup.builder()
@@ -144,10 +210,7 @@ public class KeyboardUtils {
     public static ReplyKeyboardMarkup starostaMenu(){
         KeyboardRow row1 = new KeyboardRow();
         row1.add(KeyboardButton.builder()
-                .text("Заявки")
-                .build());
-        row1.add(KeyboardButton.builder()
-                .text("Добавить дедлайн")
+                .text("Пропуски")
                 .build());
 
         KeyboardRow row2 = new KeyboardRow();
@@ -155,14 +218,20 @@ public class KeyboardUtils {
                 .text("Добавить оповещение")
                 .build());
         row2.add(KeyboardButton.builder()
+                .text("Добавить дедлайн")
+                .build());
+
+
+        KeyboardRow row3 = new KeyboardRow();
+        row3.add(KeyboardButton.builder()
                 .text("Я не староста")
                 .build());
-        KeyboardRow row3 = new KeyboardRow();
-        row2.add(KeyboardButton.builder()
+        KeyboardRow row4 = new KeyboardRow();
+        row4.add(KeyboardButton.builder()
                 .text("Назад")
                 .build());
         return ReplyKeyboardMarkup.builder()
-                .keyboard(List.of(row1, row2, row3))
+                .keyboard(List.of(row1, row2, row3, row4))
                 .resizeKeyboard(true)
                 .oneTimeKeyboard(false)
                 .selective(true)
@@ -352,4 +421,14 @@ public class KeyboardUtils {
                 .build();
     }
 
+    public static InlineKeyboardMarkup createYesOrNoInlineMarkup() {
+        return InlineKeyboardMarkup.builder()
+                .keyboard(List.of(
+                        new InlineKeyboardRow(List.of(
+                                InlineKeyboardButton.builder().text("✅ Да").callbackData("ABSENCE_CONFIRM").build(),
+                                InlineKeyboardButton.builder().text("❌ Нет").callbackData("ABSENCE_CANCEL").build()
+                        ))
+                ))
+                .build();
+    }
 }

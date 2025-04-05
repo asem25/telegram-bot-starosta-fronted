@@ -5,6 +5,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import ru.semavin.bot.dto.ScheduleDTO;
 
+import java.time.DayOfWeek;
 import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
 import java.util.List;
@@ -75,6 +76,7 @@ public class ScheduleService {
         }
         return sb.toString();
     }
+
     private String getStringForLessonType(String lessonType){
         return switch (lessonType) {
             case "LECTURE" -> "ЛК";
