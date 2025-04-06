@@ -35,12 +35,12 @@ public class CacheConfig {
                         .buildAsync());
         cacheManager.registerCustomCache("deadlineMessages",
                 Caffeine.newBuilder()
-                        .expireAfterWrite(1, TimeUnit.DAYS)
+                        .expireAfterWrite(5, TimeUnit.DAYS)
                         .maximumSize(15)
                         .buildAsync());
         cacheManager.registerCustomCache("users",
                 Caffeine.newBuilder()
-                        .expireAfterWrite(1, TimeUnit.HOURS)
+                        .expireAfterWrite(3, TimeUnit.DAYS)
                         .maximumSize(1000)
                         .buildAsync());
 
