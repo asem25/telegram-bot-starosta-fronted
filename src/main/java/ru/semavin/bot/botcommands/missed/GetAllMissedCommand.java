@@ -38,24 +38,33 @@ public class GetAllMissedCommand implements BotCommand {
     @Override
     public CompletableFuture<Void> execute(Message message) {
         Long chatId = message.getChatId();
-        userService.getUserForTelegramTag(message.getFrom().getUserName()).thenAccept(user -> {
-            if (!"STAROSTA".equalsIgnoreCase(user.getRole())) {
-                messageSenderService.sendTextMessage(chatId, "У вас нет доступа к этой команде!");
-                log.warn("{} попытался воспользоваться командой 'Пропуски'", user.getUsername());
-            } else {
-                SkipNotificationService.MissedResponse result = skipNotificationService.formatGroupAbsencesWithKeyboard(user.getGroupName());
+        String username = message.getFrom().getUserName();
 
+        return userService.getUserForTelegramTag(username) // => CompletableFuture<UserDTO>
+                .thenCompose(user -> {
+                    if (!"STAROSTA".equalsIgnoreCase(user.getRole())) {
+                        // Нет доступа — отправляем сообщение и завершаемся
+                        messageSenderService.sendTextMessage(chatId, "У вас нет доступа к этой команде!");
+                        log.warn("{} попытался воспользоваться командой 'Пропуски'", user.getUsername());
+                        return CompletableFuture.completedFuture(null);
+                    } else {
+                        // Староста => получаем пропуски
+                        return skipNotificationService.formatGroupAbsencesWithKeyboard(user.getGroupName())
+                                .thenCompose(result -> {
+                                    // result — объект MissedResponse
+                                    SendMessage msg = SendMessage.builder()
+                                            .chatId(chatId.toString())
+                                            .text(result.getText())
+                                            .parseMode("Markdown")
+                                            .replyMarkup(result.getMarkup())
+                                            .build();
 
-                messageSenderService.sendButtonMessage(
-                        SendMessage.builder()
-                                .chatId(chatId.toString())
-                                .text(result.getText())
-                                .parseMode("Markdown")
-                                .replyMarkup(result.getMarkup())
-                                .build()
-                );
-            }
-        });
-        return CompletableFuture.completedFuture(null);
+                                    // Отправляем кнопочное сообщение
+                                    return messageSenderService.sendButtonMessage(msg)
+                                            // Когда сообщение отправлено, завершаем CompletableFuture<Void>
+                                            .thenApply(apiResponse -> null);
+                                });
+                    }
+                });
     }
 }

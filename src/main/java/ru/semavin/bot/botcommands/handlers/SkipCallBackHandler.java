@@ -17,7 +17,6 @@ import java.time.LocalDate;
 @RequiredArgsConstructor
 public class SkipCallBackHandler {
     private final SkipNotificationService skipNotificationService;
-    private final UserService userService;
     private final MessageSenderService messageSenderService;
     public void handleSkipCallback(CallbackQuery callbackQuery){
         String data = callbackQuery.getData();
@@ -25,26 +24,22 @@ public class SkipCallBackHandler {
         Integer messageId = callbackQuery.getMessage().getMessageId();
 
         if (data.startsWith("DELETE_MISSED_")) {
-            // data = "DELETE_MISSED_username_2025-04-01_2025-04-03"
+            // data = "DELETE_MISSED_uuid"
             String[] parts = data.split("_");
-            // 0:DELETE, 1:MISSED, 2:username, 3:fromDate, 4:toDate
-            String username = parts[2];
-            LocalDate from = LocalDate.parse(parts[3]);
-            LocalDate to   = LocalDate.parse(parts[4]);
+            // 0:DELETE, 1:MISSED, 2:uuid
+            String uuid = parts[2];
 
             // Узнаём у userService, к какой группе принадлежит username
-            userService.getUserForTelegramTag(username).thenAccept(user -> {
-                boolean deleted = skipNotificationService.deleteSkip(user.getGroupName(), username, from, to);
-
-                String text = deleted
-                        ? "✅ Пропуск с " + from + " по " + to + " для @" + username + " удалён."
-                        : "⚠️ Не удалось найти этот пропуск.";
-
+            skipNotificationService.deleteSkip(uuid).thenAccept(skip -> {
+                log.info("Удаление пропуска ");
                 messageSenderService.editMessageText(
-                        KeyboardUtils.createEditMessage(chatId.toString(), messageId, text, null)
+                        KeyboardUtils.createEditMessage(chatId.toString(), messageId, "✅ Пропуск  удалён.", null)
                 );
-            });
-            return;
+            })
+                    .exceptionally(e -> {
+                            log.warn("⚠️ Не удалось найти этот пропуск.");
+                            return null;
+                    });
         }
     }
 }

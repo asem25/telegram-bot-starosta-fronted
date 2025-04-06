@@ -28,7 +28,7 @@ public class ScheduleApiService {
                         restClient.get()
                                 .uri(urlApi + "/schedule/currentDay?groupName={groupName}", groupName)
                                 .retrieve()
-                                .body(new ParameterizedTypeReference<List<ScheduleDTO>>() {}),
+                               .body(new ParameterizedTypeReference<List<ScheduleDTO>>() {}),
                 executorService
         );
     }

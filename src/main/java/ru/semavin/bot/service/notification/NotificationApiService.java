@@ -3,10 +3,14 @@ package ru.semavin.bot.service.notification;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.core.ParameterizedTypeReference;
 import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestClient;
+import ru.semavin.bot.dto.ScheduleDTO;
 import ru.semavin.bot.dto.SkipNotificationDTO;
 
+import java.util.List;
+import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutorService;
 
@@ -30,6 +34,7 @@ public class NotificationApiService {
      * @param dto DTO пропуска
      */
     public CompletableFuture<String> sendSkipNotification(SkipNotificationDTO dto) {
+        log.info("Body to post {}", dto);
         return CompletableFuture.supplyAsync(() -> {
             // Например, POST /add
             return restClient.post()
@@ -51,12 +56,10 @@ public class NotificationApiService {
      * Вариант, если у SkipNotificationDTO есть id,
      * или можно построить query param.
      */
-    public CompletableFuture<Void> deleteSkipNotification(SkipNotificationDTO dto) {
+    public CompletableFuture<Void> deleteSkipNotification(UUID id) {
         return CompletableFuture.runAsync(() -> {
             // Допустим, есть dto.getId() или из dto формируем query
-            String url = notificationApiBase + "/notification/delete?username=" + dto.getUsername()
-                    + "&from=" + dto.getFromDate()
-                    + "&to=" + dto.getToDate();
+            String url = notificationApiBase + "/notification/delete?id=" + id;
 
             restClient.delete()
                     .uri(url)
@@ -66,8 +69,17 @@ public class NotificationApiService {
             if (ex != null) {
                 log.error("Ошибка при удалении пропуска во внешнем API: {}", ex.getMessage());
             } else {
-                log.info("Пропуск удалён во внешнем API: {}", dto);
+                log.info("Пропуск удалён во внешнем API: {}", id);
             }
         });
+    }
+    public CompletableFuture<List<SkipNotificationDTO>> getAllNotification(String groupName) {
+        return CompletableFuture.supplyAsync(() ->
+                    restClient.get()
+                            .uri(notificationApiBase + "/notification?groupName=" + groupName)
+                            .retrieve()
+                            .body(new ParameterizedTypeReference<List<SkipNotificationDTO>>() {
+                            })
+                , executorService);
     }
 }

@@ -146,15 +146,13 @@ public class KeyboardUtils {
 
         for (SkipNotificationDTO dto : absences) {
             //TODO сделать клавишу удаления поменьше
-            String from = dto.getFromDate().toString();   // \"2025-04-01\"
-            String to   = dto.getToDate().toString();     // \"2025-04-02\"
-
-            // Пример: DELETE_MISSED_petya_2025-04-01_2025-04-02
-            String callbackData = "DELETE_MISSED_" + dto.getUsername() + "_" + from + "_" + to;
+            UUID uuid = dto.getUuid();
+            // Пример: DELETE_MISSED_petya_uuid
+            String callbackData = "DELETE_MISSED_" +  uuid;
 
             // Текст кнопки: \"Удалить пропуск (1.04 — 2.04)\", либо короче
             InlineKeyboardButton deleteButton = InlineKeyboardButton.builder()
-                    .text("Удалить пропуск (" + from + " - " + to + ")")
+                    .text("del (" + dto.getUsername() + " - " + absences.indexOf(dto) + ")")
                     .callbackData(callbackData)
                     .build();
 

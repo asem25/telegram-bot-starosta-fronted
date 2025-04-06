@@ -1,10 +1,9 @@
 package ru.semavin.bot.service.notification;
 
-import lombok.Builder;
 import lombok.Data;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.cache.annotation.Cacheable;
+import org.springframework.scheduling.annotation.Async;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 import org.telegram.telegrambots.meta.api.objects.replykeyboard.InlineKeyboardMarkup;
@@ -14,12 +13,9 @@ import ru.semavin.bot.service.MessageSenderService;
 import ru.semavin.bot.service.groups.GroupService;
 import ru.semavin.bot.util.KeyboardUtils;
 
-import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Map;
-import java.util.Optional;
+import java.util.*;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
 
 @RequiredArgsConstructor
@@ -66,39 +62,20 @@ public class SkipNotificationService {
                 log.warn("В группе {} нет старосты, уведомление не отправлено", group);
             }
         });
-
-        // Добавляем в список активных уведомлений
-        notificationsByGroup.computeIfAbsent(group, g -> new ArrayList<>()).add(dto);
+        //Отправляем на сервис
+        dto.setUuid(UUID.randomUUID());
+        notificationApiService.sendSkipNotification(dto);
     }
-    public boolean deleteSkip(String groupName, String username, LocalDate fromDate, LocalDate toDate) {
-        //TODO Переделать для api
-
-        // Получаем список для группы
-        List<SkipNotificationDTO> list = notificationsByGroup.getOrDefault(groupName, new ArrayList<>());
-        // Ищем элемент
-        Optional<SkipNotificationDTO> maybe = list.stream()
-                .filter(n ->
-                        n.getUsername().equals(username) &&
-                                n.getFromDate().equals(fromDate) &&
-                                n.getToDate().equals(toDate)
-                )
-                .findFirst();
-        if (maybe.isPresent()) {
-            list.remove(maybe.get());
-            return true;
-        }
-        return false;
+    @Async
+    public CompletableFuture<Void> deleteSkip(String uuid) {
+        return
+                notificationApiService.deleteSkipNotification(UUID.fromString(uuid));
     }
 
-    private List<SkipNotificationDTO> getActiveNotifications(String group) {
-        //TODO Переделать для api
-        return notificationsByGroup.getOrDefault(group, List.of()).stream()
-                .filter(n -> !n.isExpired())
-                .toList();
-    }
-    public String formatGroupAbsences(String groupName, List<SkipNotificationDTO> absences) {
+    @Async
+    public CompletableFuture<String> formatGroupAbsences(String groupName, List<SkipNotificationDTO> absences) {
         if (absences == null || absences.isEmpty()) {
-            return "✉️ В группе *" + groupName + "* нет активных уведомлений о пропусках.";
+            return CompletableFuture.completedFuture("✉️ В группе *" + groupName + "* нет активных уведомлений о пропусках.");
         }
 
         StringBuilder sb = new StringBuilder();
@@ -124,25 +101,37 @@ public class SkipNotificationService {
             sb.append("\n");
         }
 
-        return sb.toString();
+        return CompletableFuture.completedFuture(sb.toString());
     }
-    @Scheduled(cron = "0 0 6 * * *")
-    public void cleanupExpired() {
-        notificationsByGroup.forEach((group, list) ->
-                list.removeIf(SkipNotificationDTO::isExpired)
-        );
-    }
-    @Cacheable(cacheNames = "missedAbsences", key = "#groupName")
-    public MissedResponse formatGroupAbsencesWithKeyboard(String groupName) {
-        MissedResponse toResponse = new MissedResponse();
 
-        List<SkipNotificationDTO> absences = getActiveNotifications(groupName);
-        String text = formatGroupAbsences(groupName, absences);
-        // Клавиатура
-        InlineKeyboardMarkup markup = KeyboardUtils.buildMissedInlineKeyboard(absences);
+    public CompletableFuture<MissedResponse> formatGroupAbsencesWithKeyboard(String groupName) {
+        // 1) Сначала получаем список пропусков во внешнем API
+        return notificationApiService.getAllNotification(groupName) // CF<List<SkipNotificationDTO>>
+                // 2) Когда список готов – вызываем formatGroupAbsences
+                .thenCompose(skipList -> {
+                    // formatGroupAbsences(...) вернёт CF<String>
+                    CompletableFuture<String> textFuture = formatGroupAbsences(groupName, skipList);
 
-        toResponse.setMarkup(markup);
-        toResponse.setText(text);
-        return toResponse;
+                    // объединяем:
+                    return textFuture.thenApply(text -> {
+                        // формируем MissedResponse
+                        MissedResponse response = new MissedResponse();
+                        response.setText(text);
+
+                        // Инлайн-кнопки строим из skipList
+                        InlineKeyboardMarkup markup = KeyboardUtils.buildMissedInlineKeyboard(skipList);
+                        response.setMarkup(markup);
+                        return response;
+                    });
+                })
+                // обработка ошибок
+                .exceptionally(ex -> {
+                    log.error("Ошибка в цепочке при получении пропусков или формировании текста: {}", ex.getMessage());
+                    // Возвращаем MissedResponse с текстом об ошибке
+                    MissedResponse fallback = new MissedResponse();
+                    fallback.setText("Ошибка при получении пропусков");
+                    fallback.setMarkup(null);
+                    return fallback;
+                });
     }
 }

@@ -31,20 +31,10 @@ public class AbsenceCalendarContextService {
         if (dto != null) {
             dto.setDescription(description);
             skipNotificationService.notifyStarosta(dto);
-
+            messageSenderService.sendTextMessage(userId, "✅ Староста уведомлен!");
             clear(userId);
         }
 
-    }
-    public String getTextForAgree(LocalDate from, LocalDate to){
-        return  String.format("""
-                            🗓 Вы выбрали пропуск:
-                            с %s по %s
-                            ✅ Всё верно?
-                            """,
-                from.format(DateTimeFormatter.ofPattern("dd.MM.yyyy")),
-                to.format(DateTimeFormatter.ofPattern("dd.MM.yyyy"))
-        );
     }
     public void setUserContext(Long userId, String username, String groupName) {
         draftByUser.putIfAbsent(userId, new SkipNotificationDTO());
