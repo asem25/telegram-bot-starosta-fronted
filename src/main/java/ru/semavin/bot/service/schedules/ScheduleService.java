@@ -72,7 +72,7 @@ public class ScheduleService {
                     dto.getStartTime(),
                     dto.getEndTime(),
                     dto.getClassroom(),
-                    dto.getTeacherName()));
+                    (dto.getTeacherName().contains("Не указан") ? dto.getTeacherName().substring(0, 9) : dto.getTeacherName())));
         }
         return sb.toString();
     }
