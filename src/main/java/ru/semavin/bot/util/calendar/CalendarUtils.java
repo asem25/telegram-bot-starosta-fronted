@@ -241,6 +241,7 @@ public class CalendarUtils {
     }
 
     public static InlineKeyboardMarkup buildWeeksMarkupForMonth(YearMonth month) {
+        //TODO В июне есть неделя из мая
         return monthWeeksCache.computeIfAbsent(month, m -> {
             List<InlineKeyboardRow> rows = new ArrayList<>();
             LocalDate firstWeekStart = getCorrectFirstWeekStart(m);

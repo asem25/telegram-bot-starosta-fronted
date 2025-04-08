@@ -2,6 +2,7 @@ package ru.semavin.bot.service.groups;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.cache.annotation.CacheEvict;
 import org.springframework.stereotype.Service;
 import ru.semavin.bot.dto.GroupDTO;
 import ru.semavin.bot.dto.UserDTO;
@@ -18,10 +19,12 @@ import java.util.concurrent.CompletableFuture;
 public class GroupService {
     private final GroupApiService groupApiService;
     private final UserService userService;
+    //TODO добавил, возможно
+    @CacheEvict(value = "users", key = "#username")
     public CompletableFuture<GroupDTO> setStarosta(String groupName, String username) {
         return groupApiService.setStarosta(groupName, username);
     }
-
+    @CacheEvict(value = "users", key="#username")
     public CompletableFuture<GroupDTO> deleteStarosta(String groupName, String username) {
         return groupApiService.deleteStarosta(groupName, username);
     }
