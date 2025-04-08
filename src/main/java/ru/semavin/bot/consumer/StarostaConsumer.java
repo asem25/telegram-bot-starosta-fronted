@@ -168,6 +168,7 @@ public class StarostaConsumer implements LongPollingUpdateConsumer {
             skipCallBackHandler.handleSkipCallback(callbackQuery);
             return;
         }
+        //TODO ScheduleChangeHandler
         if (data.startsWith("DELETE_DEADLINE_")) {
             UUID id = UUID.fromString(data.replace("DELETE_DEADLINE_", ""));
             boolean deleted = deadlineService.deleteDeadline(id);

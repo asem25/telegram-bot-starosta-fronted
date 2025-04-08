@@ -7,21 +7,23 @@ import lombok.NoArgsConstructor;
 
 import java.time.LocalDate;
 import java.time.LocalTime;
-@Data
+
+@ Data
 @Builder
 @AllArgsConstructor
 @NoArgsConstructor
-public class ScheduleDTO {
-    private Long id;
-    private String groupName;
+public class ScheduleChangeDTO {
     private String subjectName;
-    private String lessonType; // LECTURE, PARCTIK, LABORATY
+    private String lessonType;
     private String teacherName;
     private String classroom;
+    private LocalDate oldLessonDate;
+    private LocalTime oldStartTime;
+    private LocalTime oldEndTime;
+
+    private LocalDate newLessonDate;
+    private LocalTime newStartTime;
+    private LocalTime newEndTime;
 
     private String description;
-
-    private LocalDate lessonDate;
-    private LocalTime startTime;
-    private LocalTime endTime;
 }

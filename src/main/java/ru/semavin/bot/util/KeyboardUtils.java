@@ -9,6 +9,7 @@ import org.telegram.telegrambots.meta.api.objects.replykeyboard.buttons.InlineKe
 import org.telegram.telegrambots.meta.api.objects.replykeyboard.buttons.InlineKeyboardRow;
 import org.telegram.telegrambots.meta.api.objects.replykeyboard.buttons.KeyboardButton;
 import org.telegram.telegrambots.meta.api.objects.replykeyboard.buttons.KeyboardRow;
+import ru.semavin.bot.dto.ScheduleDTO;
 import ru.semavin.bot.dto.SkipNotificationDTO;
 import ru.semavin.bot.util.calendar.CalendarUtils;
 
@@ -161,6 +162,44 @@ public class KeyboardUtils {
 
         return InlineKeyboardMarkup.builder().keyboard(List.of(rows)).build();
     }
+    public static InlineKeyboardMarkup createScheduleChangeMarkup() {
+        InlineKeyboardRow row = new InlineKeyboardRow();
+        row.add(InlineKeyboardButton.builder()
+                .text("Редактировать")
+                .callbackData("SCHEDULE_CHANGE_EDIT")
+                .build());
+        row.add(InlineKeyboardButton.builder()
+                .text("Удалить")
+                .callbackData("SCHEDULE_CHANGE_DELETE")
+                .build());
+        return InlineKeyboardMarkup.builder()
+                .keyboardRow(row)
+                .build();
+    }
+    /**
+     * Генерирует клавиатуру со списком занятий для выбранной даты.
+     * Каждая кнопка содержит составной ключ в формате:
+     * "LESSON_SELECT_{groupName}|{lessonDate}|{startTime}"
+     */
+    public static InlineKeyboardMarkup createLessonsMarkup(List<ScheduleDTO> lessons) {
+        List<InlineKeyboardRow> rows = new ArrayList<>();
+        for (ScheduleDTO lesson : lessons) {
+            InlineKeyboardRow row = new InlineKeyboardRow();
+            String text = String.format("%s %s–%s %s",
+                    lesson.getLessonDate(),
+                    lesson.getStartTime(),
+                    lesson.getEndTime(),
+                    lesson.getSubjectName());
+            String callbackData = "LESSON_SELECT_" + lesson.getGroupName() + "|" +
+                    lesson.getLessonDate() + "|" + lesson.getStartTime();
+            row.add(
+                    InlineKeyboardButton.builder().text(text).callbackData(callbackData).build()
+            );
+            rows.add(row);
+        }
+        return InlineKeyboardMarkup.builder().keyboard(rows).build();
+    }
+
     private static ReplyKeyboardMarkup getMainRowsMainMenu(KeyboardRow row1) {
         KeyboardRow row2 = new KeyboardRow();
         row2.add(KeyboardButton.builder()
@@ -176,6 +215,48 @@ public class KeyboardUtils {
                 .oneTimeKeyboard(false)    // Клавиатура остается видимой, пока пользователь ее не скроет
                 .selective(true)           // Показывает клавиатуру только нужным пользователям в групповом чате
                 .build();
+    }
+    /**
+     * Генерирует клавиатуру для редактирования изменений в расписании.
+     * Кнопки позволяют изменить дату, время, аудиторию, комментарий, а также подтвердить или отменить изменения.
+     */
+    public static InlineKeyboardMarkup createScheduleChangeEditMarkup() {
+        List<InlineKeyboardRow> rows = new ArrayList<>();
+
+        InlineKeyboardRow row1 = new InlineKeyboardRow();
+        row1.add(InlineKeyboardButton.builder()
+                .text("Редактировать дату")
+                .callbackData("UPDATE_SCHEDULE_CHANGE_FIELD_newLessonDate")
+                .build());
+        row1.add(InlineKeyboardButton.builder()
+                .text("Редактировать время")
+                .callbackData("UPDATE_SCHEDULE_CHANGE_FIELD_newStartTime")
+                .build());
+        rows.add(row1);
+
+        InlineKeyboardRow row2 = new InlineKeyboardRow();
+        row2.add(InlineKeyboardButton.builder()
+                .text("Редактировать аудиторию")
+                .callbackData("UPDATE_SCHEDULE_CHANGE_FIELD_classroom")
+                .build());
+        row2.add(InlineKeyboardButton.builder()
+                .text("Редактировать комментарий")
+                .callbackData("UPDATE_SCHEDULE_CHANGE_FIELD_description")
+                .build());
+        rows.add(row2);
+
+        InlineKeyboardRow row3 = new InlineKeyboardRow();
+        row3.add(InlineKeyboardButton.builder()
+                .text("Подтвердить")
+                .callbackData("SCHEDULE_CHANGE_CONFIRM")
+                .build());
+        row3.add(InlineKeyboardButton.builder()
+                .text("Отменить")
+                .callbackData("SCHEDULE_CHANGE_CANCEL")
+                .build());
+        rows.add(row3);
+
+        return InlineKeyboardMarkup.builder().keyboard(rows).build();
     }
     public static ReplyKeyboardMarkup scheduleMainMenu(){
         KeyboardRow row1 = new KeyboardRow();

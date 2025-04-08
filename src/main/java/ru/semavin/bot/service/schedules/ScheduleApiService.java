@@ -5,10 +5,14 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.cache.annotation.Cacheable;
 import org.springframework.core.ParameterizedTypeReference;
+import org.springframework.http.HttpMethod;
+import org.springframework.http.RequestEntity;
 import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestClient;
+import ru.semavin.bot.dto.ScheduleChangeDTO;
 import ru.semavin.bot.dto.ScheduleDTO;
 
+import java.net.URI;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutorService;
@@ -64,5 +68,43 @@ public class ScheduleApiService {
                                 .body(new ParameterizedTypeReference<List<ScheduleDTO>>() {}),
                 executorService
         );
+    }
+    /**
+     * Отправляет запрос на обновление расписания (PUT-запрос).
+     *
+     * @param groupName Имя группы.
+     * @param dto       Данные изменения в расписании.
+     * @return CompletableFuture со строковым ответом API.
+     */
+    public CompletableFuture<String> updateScheduleChange(String groupName, ScheduleChangeDTO dto) {
+        String url = urlApi + "?groupName=" + groupName;
+        return CompletableFuture.supplyAsync(() -> {
+            return restClient.put()
+                    .uri(url)
+                    .body(dto)
+                    .retrieve()
+                    .body(String.class);
+        }, executorService);
+    }
+
+    /**
+     * Отправляет запрос на удаление пары (DELETE-запрос) с телом запроса.
+     *
+     * Так как у метода restClient.delete() нет метода body,
+     * используется RequestEntity с HTTP-методом DELETE и метод exchange().
+     *
+     * @param groupName Имя группы.
+     * @param dto       Данные удаляемой пары.
+     * @return CompletableFuture со строковым ответом API.
+     */
+    public CompletableFuture<String> deleteScheduleChange(String groupName, ScheduleChangeDTO dto) {
+        String url = urlApi + "?groupName=" + groupName;
+        return CompletableFuture.supplyAsync(() -> {
+            return restClient.method(HttpMethod.DELETE)
+                    .uri(url)
+                    .body((dto))
+                    .retrieve()
+                    .body(String.class);
+        }, executorService);
     }
 }

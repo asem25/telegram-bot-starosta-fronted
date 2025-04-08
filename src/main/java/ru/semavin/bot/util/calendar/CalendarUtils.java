@@ -149,7 +149,12 @@ public class CalendarUtils {
 
         return InlineKeyboardMarkup.builder().keyboard(rows).build();
     }
-
+    public static InlineKeyboardMarkup buildCalendarForChange(int year, int month) {
+        // Используем похожий кэш, либо можно переиспользовать существующий,
+        // если структура календаря одинакова, но с другим префиксом.
+        YearMonth ym = YearMonth.of(year, month);
+        return generateCalendar(ym, "CALENDAR_CHANGE_");
+    }
 
     /**
      *
