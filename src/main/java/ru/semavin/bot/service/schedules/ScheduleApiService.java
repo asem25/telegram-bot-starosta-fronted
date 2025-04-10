@@ -3,7 +3,9 @@ package ru.semavin.bot.service.schedules;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.cache.annotation.CacheEvict;
 import org.springframework.cache.annotation.Cacheable;
+import org.springframework.cache.annotation.Caching;
 import org.springframework.core.ParameterizedTypeReference;
 import org.springframework.http.HttpMethod;
 import org.springframework.http.RequestEntity;
@@ -76,8 +78,12 @@ public class ScheduleApiService {
      * @param dto       Данные изменения в расписании.
      * @return CompletableFuture со строковым ответом API.
      */
+    @Caching(evict = {
+            @CacheEvict(value = "schedule_day", key = "'day:date:' + #groupName + ':' + #dto.oldLessonDate.format(T(java.time.format.DateTimeFormatter).ofPattern('dd.MM.yyyy'))"),
+            @CacheEvict(value = "schedule_week", key = "'week:current:' + #groupName")
+    })
     public CompletableFuture<String> updateScheduleChange(String groupName, ScheduleChangeDTO dto) {
-        String url = urlApi + "?groupName=" + groupName;
+        String url = urlApi + "/schedule/change?groupName=" + groupName;
         return CompletableFuture.supplyAsync(() -> {
             return restClient.put()
                     .uri(url)
@@ -97,14 +103,27 @@ public class ScheduleApiService {
      * @param dto       Данные удаляемой пары.
      * @return CompletableFuture со строковым ответом API.
      */
+    @Caching(evict = {
+            @CacheEvict(value = "schedule_day", key = "'day:date:' + #groupName + ':' + #dto.oldLessonDate.format(T(java.time.format.DateTimeFormatter).ofPattern('dd.MM.yyyy'))"),
+            @CacheEvict(value = "schedule_week", key = "'week:current:' + #groupName")
+    })
     public CompletableFuture<String> deleteScheduleChange(String groupName, ScheduleChangeDTO dto) {
-        String url = urlApi + "?groupName=" + groupName;
+        String url = urlApi + "/schedule/change?groupName=" + groupName;
         return CompletableFuture.supplyAsync(() -> {
             return restClient.method(HttpMethod.DELETE)
                     .uri(url)
                     .body((dto))
                     .retrieve()
                     .body(String.class);
+        }, executorService);
+    }
+    public CompletableFuture<ScheduleDTO> findLesson(String groupName, String date, String startTime) {
+        String url = urlApi + "/schedule/lesson?groupName=" + groupName + "&date=" + date + "&startTime=" + startTime;
+        return CompletableFuture.supplyAsync(() -> {
+            return restClient.method(HttpMethod.GET)
+                    .uri(url)
+                    .retrieve()
+                    .body(ScheduleDTO.class);
         }, executorService);
     }
 }

@@ -2,6 +2,7 @@ package ru.semavin.bot.service.schedules;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.cglib.core.Local;
 import org.springframework.stereotype.Service;
 import ru.semavin.bot.dto.ScheduleDTO;
 
@@ -49,7 +50,10 @@ public class ScheduleService {
                     return "⚠ Ошибка при получении расписания на неделю от " + formattedDate;
                 });
     }
-
+    public CompletableFuture<ScheduleDTO> findLesson(String groupName, LocalDate date, String startTime){
+        String formattedDate = date.format(formatter);
+        return scheduleApiService.findLesson(groupName, formattedDate, startTime);
+    }
     public CompletableFuture<String> getScheduleSomeDate(String groupName, LocalDate date) {
         String formattedDate = date.format(formatter);
         return scheduleApiService.getForSomeDate(formattedDate, groupName)
@@ -59,7 +63,10 @@ public class ScheduleService {
                     return "⚠ Ошибка при получении расписания на дату " + formattedDate;
                 });
     }
-
+    public CompletableFuture<List<ScheduleDTO>> getScheduleSomeDateWithOutText(String groupName, LocalDate date) {
+        String formattedDate = date.format(formatter);
+        return scheduleApiService.getForSomeDate(formattedDate, groupName);
+    }
     private String buildScheduleTextForDay(List<ScheduleDTO> schedule, String formattedDate) {
         if (schedule == null || schedule.isEmpty()) {
             return "📅 На " + formattedDate + " занятий нет";

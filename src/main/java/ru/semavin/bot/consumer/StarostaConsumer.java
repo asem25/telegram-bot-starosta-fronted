@@ -4,14 +4,17 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
 import org.telegram.telegrambots.longpolling.interfaces.LongPollingUpdateConsumer;
+import org.telegram.telegrambots.meta.api.methods.send.SendMessage;
 import org.telegram.telegrambots.meta.api.objects.*;
 import org.telegram.telegrambots.meta.api.objects.message.MaybeInaccessibleMessage;
 import org.telegram.telegrambots.meta.api.objects.message.Message;
+import org.telegram.telegrambots.meta.api.objects.replykeyboard.InlineKeyboardMarkup;
 import ru.semavin.bot.botcommands.handlers.*;
 import ru.semavin.bot.enums.RegistrationStep;
 import ru.semavin.bot.service.*;
 import ru.semavin.bot.service.deadline.DeadLineCreationService;
 import ru.semavin.bot.service.deadline.DeadlineService;
+import ru.semavin.bot.service.schedules.ScheduleChangeEditingContextService;
 import ru.semavin.bot.service.schedules.ScheduleService;
 import ru.semavin.bot.service.users.profile.ProfileEditingService;
 import ru.semavin.bot.service.users.register.RegistrationStateService;
@@ -47,6 +50,8 @@ public class StarostaConsumer implements LongPollingUpdateConsumer {
     private final CalendarCallBackHandler calendarCallBackHandler;
     private final ScheduleCallbackHandler scheduleCallbackHandler;
     private final SkipCallBackHandler skipCallBackHandler;
+    private final ScheduleChangeCallBackHandler scheduleChangeCallBackHandler;
+    private final ScheduleChangeEditingContextService scheduleChangeEditingContextService;
 
     @Override
     public void consume(List<Update> updates) {
@@ -118,7 +123,28 @@ public class StarostaConsumer implements LongPollingUpdateConsumer {
             deadlineCreationStepHandler.handleStep(message);
             return;
         }
-
+        if (scheduleChangeEditingContextService.getEditingField(chatId).isPresent()) {
+            scheduleChangeEditingContextService.processEditingInput(chatId, text).ifPresent(dto -> {
+                String updatedText = scheduleChangeEditingContextService.buildScheduleChangeText(dto);
+                InlineKeyboardMarkup editMarkup = KeyboardUtils.createScheduleChangeEditMarkup();
+                // Вместо редактирования или удаления старого сообщения – отправляем новое
+                messageSenderService.sendButtonMessage(
+                        SendMessage.builder()
+                                .chatId(chatId.toString())
+                                .text(updatedText)
+                                .replyMarkup(editMarkup)
+                                .build()
+                ).thenAccept(response -> {
+                    // Можно логировать, что обновление отправлено,
+                    // либо сохранить идентификатор нового сообщения, если потребуется дальнейшая логика.
+                    log.info("Отправлено новое сообщение с обновлёнными данными");
+                }).exceptionally(ex -> {
+                    log.error("Ошибка при отправке нового сообщения: {}", ex.getMessage());
+                    return null;
+                });
+            });
+            return;
+        }
         botCommand.handle(message);
     }
     private void handleCallback(CallbackQuery callbackQuery) {
@@ -168,7 +194,16 @@ public class StarostaConsumer implements LongPollingUpdateConsumer {
             skipCallBackHandler.handleSkipCallback(callbackQuery);
             return;
         }
-        //TODO ScheduleChangeHandler
+        if (data.startsWith("LESSON_SELECT_")
+                || data.startsWith("CALENDAR_CHANGE_")
+                || data.startsWith("SCHEDULE_CHANGE_EDIT")
+                || data.startsWith("SCHEDULE_CHANGE_DELETE")
+                || data.startsWith("UPDATE_SCHEDULE_CHANGE_FIELD_")
+                || data.startsWith("SCHEDULE_CHANGE_CONFIRM")
+                || data.startsWith("SCHEDULE_CHANGE_CANCEL_LESSON")){
+            scheduleChangeCallBackHandler.handleScheduleChangeCallback(callbackQuery);
+            return;
+        }
         if (data.startsWith("DELETE_DEADLINE_")) {
             UUID id = UUID.fromString(data.replace("DELETE_DEADLINE_", ""));
             boolean deleted = deadlineService.deleteDeadline(id);

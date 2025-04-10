@@ -5,6 +5,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.cache.annotation.CacheEvict;
 import org.springframework.cache.annotation.Cacheable;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.HttpStatusCode;
@@ -31,10 +32,9 @@ public class UserApiService {
 
     @Value("${api.key}")
     private String apiKey;
-
     @Value("${api.url}")
     private String url;
-
+    @CacheEvict(value = "studentGroupList", allEntries = true)
     public CompletableFuture<String> registerUser(UserDTO dto) {
         return CompletableFuture.supplyAsync(() -> {
             try {

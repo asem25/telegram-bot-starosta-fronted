@@ -30,7 +30,7 @@ public class CacheConfig {
 
         cacheManager.registerCustomCache("schedule_week",
                 Caffeine.newBuilder()
-                        .expireAfterWrite(3, TimeUnit.DAYS)
+                        .expireAfterWrite(1, TimeUnit.DAYS)
                         .maximumSize(500)
                         .buildAsync());
         cacheManager.registerCustomCache("deadlineMessages",
@@ -41,6 +41,11 @@ public class CacheConfig {
         cacheManager.registerCustomCache("users",
                 Caffeine.newBuilder()
                         .expireAfterWrite(3, TimeUnit.DAYS)
+                        .maximumSize(1000)
+                        .buildAsync());
+        cacheManager.registerCustomCache("studentGroupList",
+                Caffeine.newBuilder()
+                        .expireAfterWrite(14, TimeUnit.DAYS)
                         .maximumSize(1000)
                         .buildAsync());
 

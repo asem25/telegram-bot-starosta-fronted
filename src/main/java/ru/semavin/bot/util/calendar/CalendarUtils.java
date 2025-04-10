@@ -30,7 +30,7 @@ public class CalendarUtils {
     private static final Map<YearMonth, InlineKeyboardMarkup> absenceCalendarCache = new ConcurrentHashMap<>();
     private static final Map<Long, YearMonth> userMonthContext = new ConcurrentHashMap<>();
     private static final Map<YearMonth, InlineKeyboardMarkup> monthWeeksCache = new ConcurrentHashMap<>();
-
+    private static final Map<YearMonth, InlineKeyboardMarkup> changeCalendarCache = new ConcurrentHashMap<>();
     private static final Locale RU_LOCALE = new Locale("ru");
 
     static {
@@ -45,6 +45,7 @@ public class CalendarUtils {
         while (!current.isAfter(end)) {
             calendarCache.putIfAbsent(current, generateCalendar(current, "CALENDAR_DATE_"));
             absenceCalendarCache.putIfAbsent(current, generateCalendar(current, "ABSENCE_DATE_"));
+            changeCalendarCache.putIfAbsent(current, generateCalendar(current, "CALENDAR_CHANGE_"));
             current = current.plusMonths(1);
         }
     }
@@ -103,6 +104,9 @@ public class CalendarUtils {
     public InlineKeyboardMarkup buildAbsenceCalendar(int year, int month) {
         return absenceCalendarCache.computeIfAbsent(YearMonth.of(year, month), ym -> generateCalendar(ym, "ABSENCE_DATE_"));
     }
+    public static InlineKeyboardMarkup buildCalendarForChange(int year, int month) {
+        return changeCalendarCache.computeIfAbsent(YearMonth.of(year, month), ym -> generateCalendar(ym, "CALENDAR_CHANGE_"));
+    }
 
     private static InlineKeyboardMarkup generateCalendar(YearMonth ym, String prefix) {
         List<InlineKeyboardRow> rows = new ArrayList<>();
@@ -149,12 +153,7 @@ public class CalendarUtils {
 
         return InlineKeyboardMarkup.builder().keyboard(rows).build();
     }
-    public static InlineKeyboardMarkup buildCalendarForChange(int year, int month) {
-        // Используем похожий кэш, либо можно переиспользовать существующий,
-        // если структура календаря одинакова, но с другим префиксом.
-        YearMonth ym = YearMonth.of(year, month);
-        return generateCalendar(ym, "CALENDAR_CHANGE_");
-    }
+
 
     /**
      *
@@ -279,7 +278,7 @@ public class CalendarUtils {
 
     public LocalDate parseDateFromCallback(String callbackData) {
         log.debug("Пришла data: {}", callbackData);
-        if (callbackData != null && callbackData.contains("_DATE_")) {
+        if (callbackData != null && (callbackData.contains("_DATE_") || callbackData.contains("_CHANGE_"))) {
             String dateStr = callbackData.substring(callbackData.lastIndexOf("_") + 1);
             log.info("Полученная data, {}", dateStr);
             return LocalDate.parse(dateStr);

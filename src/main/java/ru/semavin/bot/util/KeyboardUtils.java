@@ -229,8 +229,12 @@ public class KeyboardUtils {
                 .callbackData("UPDATE_SCHEDULE_CHANGE_FIELD_newLessonDate")
                 .build());
         row1.add(InlineKeyboardButton.builder()
-                .text("Редактировать время")
+                .text("Редактировать время нач")
                 .callbackData("UPDATE_SCHEDULE_CHANGE_FIELD_newStartTime")
+                .build());
+        row1.add(InlineKeyboardButton.builder()
+                .text("Редактировать время конц")
+                .callbackData("UPDATE_SCHEDULE_CHANGE_FIELD_newEndTime")
                 .build());
         rows.add(row1);
 
@@ -246,16 +250,22 @@ public class KeyboardUtils {
         rows.add(row2);
 
         InlineKeyboardRow row3 = new InlineKeyboardRow();
+
+        InlineKeyboardRow row4 = new InlineKeyboardRow();
         row3.add(InlineKeyboardButton.builder()
+                .text("Отменить пару")
+                .callbackData("SCHEDULE_CHANGE_CANCEL_LESSON")
+                .build());
+        rows.add(row4);
+        row4.add(InlineKeyboardButton.builder()
                 .text("Подтвердить")
                 .callbackData("SCHEDULE_CHANGE_CONFIRM")
                 .build());
-        row3.add(InlineKeyboardButton.builder()
+        row4.add(InlineKeyboardButton.builder()
                 .text("Отменить")
                 .callbackData("SCHEDULE_CHANGE_CANCEL")
                 .build());
         rows.add(row3);
-
         return InlineKeyboardMarkup.builder().keyboard(rows).build();
     }
     public static ReplyKeyboardMarkup scheduleMainMenu(){
@@ -285,7 +295,37 @@ public class KeyboardUtils {
                 .selective(true)           // Показывает клавиатуру только нужным пользователям в групповом чате
                 .build();
     }
+    public static ReplyKeyboardMarkup scheduleMainMenuForStarosta(){
+        KeyboardRow row1 = new KeyboardRow();
 
+        row1.add(KeyboardButton.builder()
+                .text("Сегодня")
+                .build());
+        row1.add(KeyboardButton.builder()
+                .text("На неделю")
+                .build());
+        KeyboardRow row2 = new KeyboardRow();
+        row2.add(KeyboardButton.builder()
+                .text("День по дате")
+                .build());
+        row2.add(KeyboardButton.builder()
+                .text("Неделя по номеру")
+                .build());
+        KeyboardRow row3 = new KeyboardRow();
+        row3.add(KeyboardButton.builder()
+                .text("Изменить расписание")
+                .build());
+        KeyboardRow row4 = new KeyboardRow();
+        row4.add(KeyboardButton.builder()
+                .text("Назад")
+                .build());
+        return ReplyKeyboardMarkup.builder()
+                .keyboard(List.of(row1, row2,row3, row4))
+                .resizeKeyboard(true)    // Автоматически подгоняет размер клавиатуры под экран
+                .oneTimeKeyboard(false)    // Клавиатура остается видимой, пока пользователь ее не скроет
+                .selective(true)           // Показывает клавиатуру только нужным пользователям в групповом чате
+                .build();
+    }
     public static ReplyKeyboardMarkup starostaMenu(){
         KeyboardRow row1 = new KeyboardRow();
         row1.add(KeyboardButton.builder()
@@ -390,11 +430,25 @@ public class KeyboardUtils {
                 .replyMarkup(KeyboardUtils.scheduleMainMenu()) // Главное расписания меню
                 .build();
     }
+    public static SendMessage createMessageScheduleMenuForStarosta(Long chatId) {
+        return SendMessage.builder()
+                .chatId(chatId.toString())
+                .text("Выберите нужный пункт.")
+                .replyMarkup(KeyboardUtils.scheduleMainMenuForStarosta()) // Главное расписания меню
+                .build();
+    }
     public static SendMessage createMessageWithInlineCalendar(Long chatId, int year, int month){
         return SendMessage.builder()
                 .chatId(chatId.toString())
                 .text("Выберите дату")
                 .replyMarkup(CalendarUtils.buildCalendarKeyboard(year, month))
+                .build();
+    }
+    public static SendMessage createMessageWithInlineCalendarWithChange(Long chatId, int year, int month){
+        return SendMessage.builder()
+                .chatId(chatId.toString())
+                .text("Выберите дату")
+                .replyMarkup(CalendarUtils.buildCalendarForChange(year, month))
                 .build();
     }
 

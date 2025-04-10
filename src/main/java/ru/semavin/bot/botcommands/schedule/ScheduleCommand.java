@@ -6,6 +6,7 @@ import org.springframework.stereotype.Component;
 import org.telegram.telegrambots.meta.api.objects.message.Message;
 import ru.semavin.bot.botcommands.BotCommand;
 import ru.semavin.bot.service.MessageSenderService;
+import ru.semavin.bot.service.users.UserService;
 import ru.semavin.bot.util.KeyboardUtils;
 
 import java.util.concurrent.CompletableFuture;
@@ -15,6 +16,7 @@ import java.util.concurrent.CompletableFuture;
 public class ScheduleCommand implements BotCommand {
 
     private final MessageSenderService messageSenderService;
+    private final UserService userService;
     /**
      * Проверяет, подходит ли данное сообщение для обработки данной командой.
      *
@@ -35,12 +37,20 @@ public class ScheduleCommand implements BotCommand {
     @Override
     public CompletableFuture<Void> execute(Message message) {
         Long chatId = message.getChatId();
-        return messageSenderService.sendButtonMessage(KeyboardUtils.createMessageScheduleMenu(chatId))
-                .thenAccept(msg ->
-                {
-                    log.info("Команда 'Профиль' успешно выполнена для чата {}", chatId);
-
-                });
-
+        return userService.getUserForTelegramTag(message.getFrom().getUserName()).thenAccept(userDTO -> {
+            if (userService.isStarosta(userDTO)){
+                messageSenderService.sendButtonMessage(KeyboardUtils.createMessageScheduleMenuForStarosta(chatId))
+                        .thenAccept(msg ->
+                        {
+                            log.info("Команда 'Расписание' успешно выполнена для чата {}", chatId);
+                        });
+            }else {
+                messageSenderService.sendButtonMessage(KeyboardUtils.createMessageScheduleMenu(chatId))
+                        .thenAccept(msg ->
+                        {
+                            log.info("Команда 'Расписание' успешно выполнена для чата {}", chatId);
+                        });
+            };
+        });
     }
 }
