@@ -65,6 +65,10 @@ public class UserRegistrationService {
     private void saveGroup(Long chatId, String groupName) {
         //TODO Если возникла ошибка нужно начать регистрацию
         UserDTO data = stateService.getData(chatId);
+        if (!groupName.equalsIgnoreCase("М3О-303С-22")) {
+            messageSenderService.sendTextMessage(chatId, "В данный момент ботом могут пользоваться студенты только одной группы!\nПовторите ввод группы!");
+            return;
+        }
         data.setGroupName(groupName);
         messageSenderService.sendTextMessage(chatId, "Регистрация завершена! Сохраняем ваши данные...");
         log.info("Сохранена группа {} для чата {}. Завершаем регистрацию.", groupName, chatId);
