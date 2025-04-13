@@ -73,15 +73,15 @@ public class ScheduleService {
         }
         StringBuilder sb = new StringBuilder("📅 Расписание на " + formattedDate + ":\n\n");
         for (ScheduleDTO dto : schedule) {
-            sb.append(String.format("📘 %s (%s)\n%s – %s | Ауд: %s\n👨‍🏫 %s\n %s",
+            sb.append(String.format("📘 %s (%s)\n%s – %s | Ауд: %s\n👨‍🏫 %s\n%s\n",
                     dto.getSubjectName(),
                     getStringForLessonType(dto.getLessonType()),
                     dto.getStartTime(),
                     dto.getEndTime(),
                     dto.getClassroom(),
                     (dto.getTeacherName().contains("Не указан") ? dto.getTeacherName().substring(0, 9) : dto.getTeacherName()),
-                    (dto.getDescription() != null && !dto.getDescription().isEmpty()) ? "---------\n" + dto.getDescription() :
-                    "\n"));
+                    (dto.getDescription() != null && !dto.getDescription().isEmpty()) ? String.format("❓ Комментарий: %s\n", dto.getDescription()) :
+                    ""));
         }
         return sb.toString();
     }
