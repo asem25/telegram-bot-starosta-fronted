@@ -29,8 +29,12 @@ public class StartCommand implements BotCommand {
     @Override
     public CompletableFuture<Void> execute(Message message) {
         Long chatId = message.getChatId();
-        String username = message.getFrom().getUserName();
-
+        String username;
+        if (message.getFrom().getUserName() == null) {
+            username = message.getFrom().getId().toString();
+        }else {
+            username = message.getFrom().getUserName();
+        }
         // 1) Получаем пользователя по его Telegram-username
         return userService.getUserForTelegramTag(username)
                 // 2) thenCompose, чтобы при успехе отправить меню
