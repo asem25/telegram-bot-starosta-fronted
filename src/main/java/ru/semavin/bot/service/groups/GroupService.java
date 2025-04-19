@@ -7,7 +7,6 @@ import org.springframework.cache.annotation.Cacheable;
 import org.springframework.stereotype.Service;
 import ru.semavin.bot.dto.GroupDTO;
 import ru.semavin.bot.dto.UserDTO;
-import ru.semavin.bot.service.users.UserApiService;
 import ru.semavin.bot.service.users.UserService;
 
 import java.util.List;
@@ -20,11 +19,13 @@ import java.util.concurrent.CompletableFuture;
 public class GroupService {
     private final GroupApiService groupApiService;
     private final UserService userService;
+
     @CacheEvict(value = "users", key = "#username")
     public CompletableFuture<GroupDTO> setStarosta(String groupName, String username) {
         return groupApiService.setStarosta(groupName, username);
     }
-    @CacheEvict(value = "users", key="#username")
+
+    @CacheEvict(value = "users", key = "#username")
     public CompletableFuture<GroupDTO> deleteStarosta(String groupName, String username) {
         return groupApiService.deleteStarosta(groupName, username);
     }
@@ -32,7 +33,8 @@ public class GroupService {
     public CompletableFuture<Optional<UserDTO>> getStarosta(String groupName) {
         return groupApiService.getStarosta(groupName);
     }
-    @Cacheable(value = "studentGroupList", key ="#groupName")
+
+    @Cacheable(value = "studentGroupList", key = "#groupName")
     public CompletableFuture<List<UserDTO>> getStudentList(String groupName) {
         return groupApiService.getGroup(groupName)
                 .thenCompose(group -> {
