@@ -233,7 +233,6 @@ public class KeyboardUtils {
         row1.add(KeyboardButton.builder().text("Пропуски").build());
 
         KeyboardRow row2 = new KeyboardRow();
-        row2.add(KeyboardButton.builder().text("Добавить оповещение").build());
         row2.add(KeyboardButton.builder().text("Добавить дедлайн").build());
 
 
