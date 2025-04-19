@@ -17,7 +17,6 @@ import java.time.LocalDate;
 import java.util.*;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentSkipListSet;
-import java.util.stream.Collectors;
 
 @Slf4j
 @Service
@@ -27,63 +26,76 @@ public class DeadlineService {
     private final UserService userService;
     private final MessageSenderService messageSenderService;
     private final DeadLineApiService deadlineApiService;
+
+    /**
+     * Храним «следы» уже отправленных уведомлений, чтобы не спамить.
+     * Ключи:
+     * uuid:username                       — уведомление о создании
+     * uuid:reminder:3|1:username         — напоминания за 3 дня и 1 день
+     */
     private final Set<String> notifiedUsers = new ConcurrentSkipListSet<>();
 
+    /* --------------------------------------------------------------------------
+     *  Создание дедлайна
+     * ----------------------------------------------------------------------- */
     @CacheEvict(value = "deadlineMessages", allEntries = true)
-    public CompletableFuture<Void> addDeadline(String senderUsername, DeadlineDTO dto, Map<String, Long> recipientChats) {
+    public CompletableFuture<Void> addDeadline(String senderUsername,
+                                               DeadlineDTO dto,
+                                               Map<String, Long> recipientChats) {
         return userService.getUserForTelegramTag(senderUsername)
                 .thenCompose(user -> {
                     if (!"starosta".equalsIgnoreCase(user.getRole())) {
-                        log.warn("Пользователь {} не является старостой", senderUsername);
-                        return CompletableFuture.failedFuture(new BadRequestException("Недостаточно прав для создания дедлайна"));
+                        log.warn("{} не староста — отказ в создании дедлайна", senderUsername);
+                        return CompletableFuture.failedFuture(
+                                new BadRequestException("Недостаточно прав для создания дедлайна"));
                     }
 
                     dto.setUuid(UUID.randomUUID());
-                    log.info("dto перед отправкой: {}", dto);
+                    dto.setUsername(senderUsername);
+                    log.info("Создаём дедлайн {}", dto);
 
                     return deadlineApiService.save(dto)
                             .thenRun(() -> notifyOnCreation(dto, recipientChats));
-                })
-                .exceptionally(e -> {
-                    log.error("Ошибка при добавлении дедлайна: {}", e.getMessage());
-                    throw new BadRequestException("Ошибка при создании дедлайна");
                 });
     }
 
-    public CompletableFuture<List<DeadlineDTO>> getDeadlinesForGroupName(String groupName) {
-        return deadlineApiService.getAllByGroup(groupName);
-    }
-
+    /* --------------------------------------------------------------------------
+     *  Сообщения списка дедлайнов
+     * ----------------------------------------------------------------------- */
     @Cacheable(value = "deadlineMessages", key = "#groupName + ':' + #isStarosta")
     public List<SendMessage> buildDeadlineMessages(String groupName, Long chatId, boolean isStarosta) {
         try {
             List<DeadlineDTO> deadlines = deadlineApiService.getAllByGroup(groupName).join();
             return DeadLineMessageUtil.buildDeadlineMessagesWithButtons(groupName, chatId, deadlines, isStarosta);
         } catch (Exception ex) {
-            log.error("Ошибка при построении сообщений дедлайнов: {}", ex.getMessage());
+            log.error("Не смог построить сообщения дедлайнов: {}", ex.getMessage());
             return List.of(SendMessage.builder()
                     .chatId(chatId.toString())
-                    .text("\u26A0\uFE0F Не удалось получить список дедлайнов. Попробуйте позже.")
+                    .text("⚠ Не удалось получить список дедлайнов. Попробуйте позже.")
                     .build());
         }
     }
 
-    public Optional<DeadlineDTO> getDeadlineById(UUID id) {
-        return Optional.empty();
-    }
-
+    /* --------------------------------------------------------------------------
+     *  Удаление
+     * ----------------------------------------------------------------------- */
     @CacheEvict(value = "deadlineMessages", allEntries = true)
     public boolean deleteDeadline(UUID id) {
         try {
             deadlineApiService.delete(id).join();
+            // очищаем следы об этом дедлайне
+            notifiedUsers.removeIf(k -> k.startsWith(id.toString()));
             return true;
         } catch (Exception ex) {
-            log.error("Ошибка при удалении дедлайна через API: {}", ex.getMessage());
+            log.error("Ошибка удаления дедлайна {}: {}", id, ex.getMessage());
             return false;
         }
     }
 
-    @Scheduled(cron = "0 0 9 * * *")
+    /* --------------------------------------------------------------------------
+     *  CRON: напоминания
+     * ----------------------------------------------------------------------- */
+    @Scheduled(cron = "0 0 9 * * *")   // 09:00 каждый день
     @CacheEvict(value = "deadlineMessages", allEntries = true)
     public void checkAndSendReminders() {
         LocalDate today = LocalDate.now();
@@ -91,93 +103,94 @@ public class DeadlineService {
         LocalDate to = today.plusDays(3);
 
         deadlineApiService.getDeadlinesBetween(from, to).thenAccept(deadlines -> {
-            Set<String> validKeys = new HashSet<>();
+            for (DeadlineDTO d : deadlines) {
+                long daysLeft = today.until(d.getDueDate()).getDays();
 
-            for (DeadlineDTO deadline : deadlines) {
-                long daysLeft = today.until(deadline.getDueDate()).getDays();
-
-                if (daysLeft == 3 && !deadline.isNotified3Days()) {
-                    notifyReminder(deadline, 3);
-                    deadlineApiService.markNotified(deadline.getUuid(), true, deadline.isNotified1Day());
+                if (daysLeft == 3 && !d.isNotified3Days()) {
+                    notifyReminder(d, 3)
+                            .thenCompose(v -> deadlineApiService.markNotified(d.getUuid(), true, d.isNotified1Day()))
+                            .exceptionally(ex -> {
+                                log.error("Не смог проставить флаг 3 дней", ex);
+                                return null;
+                            })
+                            .join();
                 }
-                if (daysLeft == 1 && !deadline.isNotified1Day()) {
-                    notifyReminder(deadline, 1);
-                    deadlineApiService.markNotified(deadline.getUuid(), deadline.isNotified3Days(), true);
-                }
-
-                for (String username : deadline.getReceivers()) {
-                    validKeys.add(deadline.getUuid() + ":reminder:3:" + username);
-                    validKeys.add(deadline.getUuid() + ":reminder:1:" + username);
+                if (daysLeft == 1 && !d.isNotified1Day()) {
+                    notifyReminder(d, 1)
+                            .thenCompose(v -> deadlineApiService.markNotified(d.getUuid(), d.isNotified3Days(), true))
+                            .exceptionally(ex -> {
+                                log.error("Не смог проставить флаг 1 дня", ex);
+                                return null;
+                            })
+                            .join();
                 }
             }
 
-            // Очистка от старых записей
-            notifiedUsers.removeIf(key -> key.contains(":reminder:") && !validKeys.contains(key));
-        }).exceptionally(ex -> {
-            log.error("Ошибка при проверке дедлайнов для напоминаний: {}", ex.getMessage());
-            return null;
+            // Очищаем «старые» напоминания (дедлайн уже прошёл)
+            notifiedUsers.removeIf(key -> {
+                String[] p = key.split(":");
+                if (p.length == 0) return false;
+                try {
+                    UUID uuid = UUID.fromString(p[0]);
+                    return deadlines.stream()
+                            .filter(dl -> dl.getUuid().equals(uuid))
+                            .anyMatch(dl -> dl.getDueDate().isBefore(today.minusDays(1)));
+                } catch (IllegalArgumentException e) {
+                    return false;
+                }
+            });
         });
     }
 
+    /* --------------------------------------------------------------------------
+     *  Отправка уведомлений о создании
+     * ----------------------------------------------------------------------- */
     @Async
     public void notifyOnCreation(DeadlineDTO dto, Map<String, Long> recipientChats) {
-        for (String username : dto.getReceivers()) {
-            if (notifiedUsers.contains(dto.getUuid() + ":" + username)) {
-                continue;
-            }
+        dto.getReceivers().stream().distinct().forEach(username -> {
+            String key = dto.getUuid() + ":" + username;
+            if (!notifiedUsers.add(key)) return;   // уже отправляли
+
             Long chatId = recipientChats.get(username);
-            if (chatId != null) {
-                String message = String.format("""
-                    \uD83D\uDCCC *Новый дедлайн назначен!*
-
-                    *%s*
-
-                    \uD83D\uDCDD _%s_
-                    \uD83D\uDCC5 До: *%s*""",
-                        dto.getTitle(),
-                        dto.getDescription(),
-                        dto.getDueDate()
-                );
-                messageSenderService.sendTextWithMarkdown(chatId, message);
-                notifiedUsers.add(dto.getUuid() + ":" + username);
-            } else {
-                log.warn("Не удалось отправить уведомление: chatId не найден для {}", username);
+            if (chatId == null) {
+                log.warn("chatId не найден для {}", username);
+                return;
             }
-        }
+
+            String msg = String.format("""
+                            \uD83D\uDCCC *Новый дедлайн!*\n\n*%s*\n\n\uD83D\uDCDD _%s_\n\uD83D\uDCC5 До: *%s*""",
+                    dto.getTitle(), dto.getDescription(), dto.getDueDate());
+            messageSenderService.sendTextWithMarkdown(chatId, msg);
+        });
     }
 
-    private void notifyReminder(DeadlineDTO dto, int daysLeft) {
-        for (String username : dto.getReceivers()) {
-            String uniqueKey = dto.getUuid() + ":reminder:" + daysLeft + ":" + username;
-            if (notifiedUsers.contains(uniqueKey)) continue;
+    /* --------------------------------------------------------------------------
+     *  Напоминания
+     * ----------------------------------------------------------------------- */
+    private CompletableFuture<Void> notifyReminder(DeadlineDTO dto, int daysLeft) {
+        List<CompletableFuture<Void>> tasks = new ArrayList<>();
 
-            userService.getUserForTelegramTag(username)
+        for (String username : dto.getReceivers()) {
+            String key = dto.getUuid() + ":reminder:" + daysLeft + ":" + username;
+            if (!notifiedUsers.add(key)) continue;   // уже отправляли
+
+            tasks.add(userService.getUserForTelegramTag(username)
                     .thenAccept(user -> {
                         Long chatId = user.getTelegramId();
-                        if (chatId != null) {
-                            String message = String.format("""
-                                \uD83D\uDD14 *Напоминание о дедлайне!*
-
-                                *%s* — осталось *%d %s!*
-
-                                \uD83D\uDCDD _%s_
-                                \uD83D\uDCC5 До: *%s*""",
-                                    dto.getTitle(),
-                                    daysLeft, daysLeft == 1 ? "день" : (daysLeft <= 4 ? "дня" : "дней"),
-                                    dto.getDescription(),
-                                    dto.getDueDate()
-                            );
-                            sendReminderAsync(chatId, message);
-                            notifiedUsers.add(uniqueKey);
-                        } else {
-                            log.warn("Не удалось отправить напоминание: chatId не найден для {}", username);
+                        if (chatId == null) {
+                            log.warn("chatId не найден для {}", username);
+                            return;
                         }
-                    })
-                    .exceptionally(ex -> {
-                        log.error("Ошибка при отправке напоминания для {}: {}", username, ex.getMessage());
-                        return null;
-                    });
+
+                        String message = String.format("""
+                                        \uD83D\uDD14 *Напоминание о дедлайне!*\n\n*%s* — осталось *%d %s*\n\n\uD83D\uDCDD _%s_\n\uD83D\uDCC5 До: *%s*""",
+                                dto.getTitle(), daysLeft,
+                                daysLeft == 1 ? "день" : (daysLeft <= 4 ? "дня" : "дней"),
+                                dto.getDescription(), dto.getDueDate());
+                        sendReminderAsync(chatId, message);
+                    }));
         }
+        return CompletableFuture.allOf(tasks.toArray(new CompletableFuture[0]));
     }
 
     @Async
