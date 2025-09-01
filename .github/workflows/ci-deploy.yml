@@ -85,5 +85,7 @@ jobs:
             cd /ru/asem/bot
             sed -i "s/^FRONT_TAG=.*/FRONT_TAG=sha-${{ github.sha }}/" .env
             docker compose pull frontend
+            
+            docker compose wait backend
             docker compose up -d frontend
             docker image prune -f
