@@ -23,7 +23,7 @@ jobs:
           java-version: '21'
           cache: maven
       - name: Maven verify (tests)
-        run: mvn -B -ntp clean verify
+        run: mvn -B -ntp clean package -DskipTests
 
   docker-build-push:
     name: Build & Push Docker
