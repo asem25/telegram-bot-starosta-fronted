@@ -6,8 +6,6 @@ import org.springframework.stereotype.Service;
 import ru.semavin.bot.dto.UserDTO;
 import ru.semavin.bot.enums.RegistrationStep;
 import ru.semavin.bot.service.MessageSenderService;
-import ru.semavin.bot.service.requests.RequestService;
-import ru.semavin.bot.service.users.UserApiService;
 import ru.semavin.bot.service.users.UserService;
 import ru.semavin.bot.util.KeyboardUtils;
 import ru.semavin.bot.util.exceptions.BadRequestException;
@@ -22,18 +20,19 @@ public class UserRegistrationService {
     private final MessageSenderService messageSenderService;
     private final UserService userService;
     private boolean isTeacher = false;
+
     public void startRegistration(Long chatId, Long telegramId, org.telegram.telegrambots.meta.api.objects.User user) {
+        log.info("Начата регистрация для чата {}. Запрошено имя пользователя.", chatId);
         UserDTO data = stateService.getData(chatId);
         data.setTelegramId(telegramId);
         data.setUsername(user.getUserName());
         if (isTeacher) {
             stateService.setStep(chatId, RegistrationStep.ENTER_FIRSTNAME);
             messageSenderService.sendTextMessage(chatId, "Введите ваше имя:");
-        }else{
+        } else {
             stateService.setStep(chatId, RegistrationStep.ENTER_GROUP);
             messageSenderService.sendTextMessage(chatId, "Введите вашу группу:");
         }
-        log.info("Начата регистрация для чата {}. Запрошено имя пользователя.", chatId);
     }
 
     public void processStep(Long chatId, String text) {
@@ -58,14 +57,14 @@ public class UserRegistrationService {
         UserDTO data = stateService.getData(chatId);
         data.setLastName(lastName);
         stateService.setStep(chatId, RegistrationStep.ENTER_GROUP);
-        messageSenderService.sendTextMessage(chatId, "Введите название вашей группы (например, М3О-303С-22(Буквы русские!)):");
+        messageSenderService.sendTextMessage(chatId, "Введите название вашей группы (например, М3О-403С-22(Буквы русские!)):");
         log.info("Сохранена фамилия {} для чата {}. Переход к шагу ENTER_GROUP", lastName, chatId);
     }
 
     private void saveGroup(Long chatId, String groupName) {
         //TODO Если возникла ошибка нужно начать регистрацию
         UserDTO data = stateService.getData(chatId);
-        if (!groupName.equalsIgnoreCase("М3О-303С-22")) {
+        if (!groupName.equalsIgnoreCase("М3О-403С-22")) {
             messageSenderService.sendTextMessage(chatId, "В данный момент ботом могут пользоваться студенты только одной группы!\nПовторите ввод группы!");
             return;
         }
@@ -83,15 +82,13 @@ public class UserRegistrationService {
             log.error("Ошибка регистрации в API", error);
             {
                 if (error.getCause() instanceof EntityNotFoundException) {
-                    messageSenderService.sendTextMessage(chatId, String.format("Ошибка при сохранении данных: %s. Введите /start для начала регистрации"
-                            , error.getCause().getMessage()));
+                    messageSenderService.sendTextMessage(chatId, String.format("Ошибка при сохранении данных: %s. Введите /start для начала регистрации", error.getCause().getMessage()));
                     //todo проверка на учителя
                     messageSenderService.sendTextMessage(chatId, "Продолжите регистрацию!");
                     return null;
-                }else if (error.getCause() instanceof BadRequestException){
-                    messageSenderService.sendTextMessage(chatId, String.format("Ошибка при сохранении данных: %s. Введите /start для начала регистрации"
-                            , error.getCause().getMessage()));
-                }else {
+                } else if (error.getCause() instanceof BadRequestException) {
+                    messageSenderService.sendTextMessage(chatId, String.format("Ошибка при сохранении данных: %s. Введите /start для начала регистрации", error.getCause().getMessage()));
+                } else {
                     messageSenderService.sendTextMessage(chatId, "Неизвестная ошибка при регистрации. Обратитесь к создателю");
                 }
                 log.error("Ошибка updateUser: ", error.getCause());
