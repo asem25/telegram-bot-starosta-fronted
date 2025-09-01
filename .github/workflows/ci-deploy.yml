@@ -71,7 +71,7 @@ jobs:
 
   deploy:
     name: Deploy to Server
-    needs: docker-build-push
+    needs: ssh-test
     runs-on: ubuntu-latest
     steps:
       - name: SSH deploy
