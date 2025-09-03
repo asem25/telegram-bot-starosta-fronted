@@ -95,7 +95,7 @@ public class DeadlineService {
     /* --------------------------------------------------------------------------
      *  CRON: напоминания
      * ----------------------------------------------------------------------- */
-    @Scheduled(fixedRate = 5000)   // 09:00 каждый день
+    @Scheduled(cron = "${deadline.cron}")   // 09:00 каждый день
     @CacheEvict(value = "deadlineMessages", allEntries = true)
     public void checkAndSendReminders() {
         LocalDate today = LocalDate.now();
