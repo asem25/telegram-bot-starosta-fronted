@@ -2,6 +2,7 @@ package ru.semavin.bot.util.calendar;
 
 import lombok.experimental.UtilityClass;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Value;
 import org.telegram.telegrambots.meta.api.objects.replykeyboard.InlineKeyboardMarkup;
 import org.telegram.telegrambots.meta.api.objects.replykeyboard.buttons.InlineKeyboardButton;
 import org.telegram.telegrambots.meta.api.objects.replykeyboard.buttons.InlineKeyboardRow;
@@ -9,7 +10,6 @@ import ru.semavin.bot.util.KeyboardUtils;
 
 import java.time.DayOfWeek;
 import java.time.LocalDate;
-import java.time.Month;
 import java.time.YearMonth;
 import java.time.format.DateTimeFormatter;
 import java.time.format.TextStyle;
@@ -21,8 +21,22 @@ import java.util.concurrent.atomic.AtomicReference;
 @Slf4j
 @UtilityClass
 public class CalendarUtils {
-    private static final LocalDate MIN_DATE = LocalDate.of(2025, 2, 10);
-    private static final LocalDate MAX_DATE = LocalDate.of(2025, 6, 30);
+
+    @Value("${calendar.student.startYear}")
+    private int startYear;
+    @Value("${calendar.student.endYear}")
+    private int endYear;
+    @Value("${calendar.student.startMonth}")
+    private int startMonth;
+    @Value("${calendar.student.endMonth}")
+    private int endMonth;
+    @Value("${calendar.student.startDayOfMonth}")
+    private int startDayOfMonth;
+    @Value("${calendar.student.endDayOfMonth}")
+    private int endDayOfMonth;
+
+    private static final LocalDate MIN_DATE = LocalDate.of(startYear, startMonth, startDayOfMonth);
+    private static final LocalDate MAX_DATE = LocalDate.of(endYear, endMonth, endDayOfMonth);
 
     private static final AtomicReference<InlineKeyboardMarkup> cachedMonthsMarkup = new AtomicReference<>();
     private static final Map<Integer, InlineKeyboardMarkup> weekScheduleCache = new ConcurrentHashMap<>();
@@ -104,6 +118,7 @@ public class CalendarUtils {
     public InlineKeyboardMarkup buildAbsenceCalendar(int year, int month) {
         return absenceCalendarCache.computeIfAbsent(YearMonth.of(year, month), ym -> generateCalendar(ym, "ABSENCE_DATE_"));
     }
+
     public static InlineKeyboardMarkup buildCalendarForChange(int year, int month) {
         return changeCalendarCache.computeIfAbsent(YearMonth.of(year, month), ym -> generateCalendar(ym, "CALENDAR_CHANGE_"));
     }
@@ -156,9 +171,8 @@ public class CalendarUtils {
 
 
     /**
-     *
-     * @param ym текущий YearMonth
-     * @param prefix 'CALENDAR_DATE_' или 'ABSENCE_DATE_'
+     * @param ym            текущий YearMonth
+     * @param prefix        'CALENDAR_DATE_' или 'ABSENCE_DATE_'
      * @param isMonthMarkup если true – значит пользователь находится в режиме "Выбор месяца" (MONTH_…)
      */
     private static InlineKeyboardRow buildNavigationRow(YearMonth ym, String prefix, boolean isMonthMarkup) {
@@ -223,6 +237,7 @@ public class CalendarUtils {
 
         return row;
     }
+
     private static boolean isValidMonth(YearMonth month) {
         // Если весь месяц за пределами [MIN_DATE, MAX_DATE] – не даём переход
         if (month.atEndOfMonth().isBefore(MIN_DATE)) return false;
