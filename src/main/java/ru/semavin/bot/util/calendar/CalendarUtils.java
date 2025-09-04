@@ -45,7 +45,7 @@ public class CalendarUtils {
     private static final Map<Long, YearMonth> userMonthContext = new ConcurrentHashMap<>();
     private static final Map<YearMonth, InlineKeyboardMarkup> monthWeeksCache = new ConcurrentHashMap<>();
     private static final Map<YearMonth, InlineKeyboardMarkup> changeCalendarCache = new ConcurrentHashMap<>();
-    private static final Locale RU_LOCALE = new Locale("ru");
+    private static final Locale LOCALE = new Locale("ru");
 
     static {
         preloadAllCalendars();
@@ -85,7 +85,7 @@ public class CalendarUtils {
     }
 
     private static String getMonthDisplayName(YearMonth month) {
-        return month.getMonth().getDisplayName(TextStyle.FULL_STANDALONE, RU_LOCALE) + " " + month.getYear();
+        return month.getMonth().getDisplayName(TextStyle.FULL_STANDALONE, LOCALE) + " " + month.getYear();
     }
 
     private static LocalDate getCorrectFirstWeekStart(YearMonth month) {
