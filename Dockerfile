@@ -8,6 +8,7 @@ RUN mvn -q -DskipTests clean package
 
 # ---- run ----
 FROM eclipse-temurin:21-jre-alpine
+RUN apk add --no-cache curl
 WORKDIR /app
 # для healthcheck (curl)
 RUN apk add --no-cache curl
