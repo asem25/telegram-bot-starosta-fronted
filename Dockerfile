@@ -14,14 +14,16 @@ WORKDIR /app
 RUN apk add --no-cache curl
 COPY --from=build /app/target/bot-0.0.1-SNAPSHOT.jar app.jar
 
-ENV JAVA_TOOL_OPTIONS="\
+ENV JAVA_TOOL_OPTIONS=" \
  -XX:ActiveProcessorCount=1 \
- -XX:+UseSerialGC -Xms64m -Xmx128m \
- -XX:MaxMetaspaceSize=96m -XX:ReservedCodeCacheSize=32m \
+ -XX:+UseSerialGC \
+ -XX:MaxRAMPercentage=55 -XX:InitialRAMPercentage=20 \
+ -Xss256k \
+ -XX:MaxMetaspaceSize=48m -XX:ReservedCodeCacheSize=30m \
+ -XX:MaxDirectMemorySize=30m -XX:+ExitOnOutOfMemoryError \
  -Dspring.main.lazy-initialization=true \
- -Dserver.tomcat.max-threads=30 \
- -Dspring.datasource.hikari.maximum-pool-size=3 \
- -Dspring.datasource.hikari.minimum-idle=0 \
+ -Dserver.tomcat.max-threads=16 -Dserver.tomcat.accept-count=25 \
+ -Dspring.datasource.hikari.maximum-pool-size=2 -Dspring.datasource.hikari.minimum-idle=0 \
 "
 EXPOSE 8080
 ENTRYPOINT ["java","-jar","app.jar"]
