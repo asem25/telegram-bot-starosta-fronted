@@ -61,6 +61,6 @@ jobs:
           username: ${{ secrets.SERVER_USER }}
           key: ${{ secrets.SERVER_SSH_KEY }}
           script: |
-            cd /ru/asem/bot
+            cd /ru/asem/bot/telegram-starosta-infra
             docker compose pull frontend
             docker compose up -d --no-deps frontend
