@@ -6,6 +6,7 @@ import org.springframework.beans.factory.annotation.Value;
 import org.telegram.telegrambots.meta.api.objects.replykeyboard.InlineKeyboardMarkup;
 import org.telegram.telegrambots.meta.api.objects.replykeyboard.buttons.InlineKeyboardButton;
 import org.telegram.telegrambots.meta.api.objects.replykeyboard.buttons.InlineKeyboardRow;
+import ru.semavin.bot.util.DateService;
 import ru.semavin.bot.util.KeyboardUtils;
 
 import java.time.DayOfWeek;
@@ -22,21 +23,8 @@ import java.util.concurrent.atomic.AtomicReference;
 @UtilityClass
 public class CalendarUtils {
 
-    @Value("${calendar.student.startYear}")
-    private int startYear;
-    @Value("${calendar.student.endYear}")
-    private int endYear;
-    @Value("${calendar.student.startMonth}")
-    private int startMonth;
-    @Value("${calendar.student.endMonth}")
-    private int endMonth;
-    @Value("${calendar.student.startDayOfMonth}")
-    private int startDayOfMonth;
-    @Value("${calendar.student.endDayOfMonth}")
-    private int endDayOfMonth;
-
-    private static final LocalDate MIN_DATE = LocalDate.of(startYear, startMonth, startDayOfMonth);
-    private static final LocalDate MAX_DATE = LocalDate.of(endYear, endMonth, endDayOfMonth);
+    private LocalDate MIN_DATE = LocalDate.of(2025, 9, 1);
+    private LocalDate MAX_DATE = LocalDate.of(2026, 1, 30);
 
     private static final AtomicReference<InlineKeyboardMarkup> cachedMonthsMarkup = new AtomicReference<>();
     private static final Map<Integer, InlineKeyboardMarkup> weekScheduleCache = new ConcurrentHashMap<>();
