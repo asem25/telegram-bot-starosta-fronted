@@ -69,10 +69,13 @@ public class GroupApiService {
                         .retrieve()
                         .body(GroupDTO.class);
             } catch (Exception e) {
-                log.error("Ошибка при удалении старосты", e);
+                log.error("Ошибка", e);
                 throw new RuntimeException(e);
             }
-        }, executorService);
+        }, executorService).exceptionally(ex -> {
+            log.error("Ошибка при получении группы! {}", ex.getMessage());
+            return null;
+        });
     }
 
     public CompletableFuture<Optional<UserDTO>> getStarosta(String groupName) {

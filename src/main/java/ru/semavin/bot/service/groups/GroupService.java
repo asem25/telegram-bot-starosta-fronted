@@ -47,6 +47,11 @@ public class GroupService {
                             .thenApply(v -> futures.stream()
                                     .map(CompletableFuture::join)
                                     .toList());
+                })
+                .exceptionally(ex ->
+                {
+                    log.error("Не удалось получить расписание!", ex.getMessage());
+                    return null;
                 });
     }
 }
