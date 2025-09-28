@@ -34,15 +34,14 @@ public class EveryDayScheduleCronService {
                     for (UserDTO student : students) {
                         if (student.getTelegramId() != null) {
                                     scheduleService.getForToday(student.getGroupName())
-                                    .thenCompose(schedule -> {
-                                        return messageSenderService.sendButtonMessage(
+                                    .thenCompose(schedule ->
+                                       messageSenderService.sendButtonMessage(
                                             SendMessage.builder()
                                                     .chatId(student.getTelegramId())
                                                     .text(buildSchedule(schedule))
                                                     .replyMarkup(KeyboardUtils.createMarkupWithTomorrow(LocalDate.now()))
-                                                    .build());
-
-                                    })
+                                                    .build())
+                                    )
                                     .exceptionally(e -> {
                                         log.error("Ошибка при получении расписания на сегодня: {}", e.getMessage());
                                         return null;
