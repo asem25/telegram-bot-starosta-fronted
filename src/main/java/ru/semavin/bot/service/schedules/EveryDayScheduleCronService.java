@@ -44,7 +44,7 @@ public class EveryDayScheduleCronService {
                                                                         .replyMarkup(KeyboardUtils.createMarkupWithTomorrow(LocalDate.now()))
                                                                         .build());
 
-                                                    } else if (LocalDate.now().getDayOfWeek() == DayOfWeek.THURSDAY) {
+                                                    } else if (LocalDate.now().getDayOfWeek() == DayOfWeek.FRIDAY) {
                                                         return messageSenderService.sendButtonMessage(
                                                                 SendMessage.builder()
                                                                         .chatId(student.getTelegramId())
