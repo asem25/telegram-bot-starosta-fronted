@@ -77,14 +77,14 @@ public class EveryDayScheduleCronService {
     }
 
     private String buildMilitarySchedule(String schedule) {
-        return String.format("Военным доброе утро☀\uFE0F☀\uFE0F☀\uFE0F\nОстальным сладких снов!\n%s\n Продуктивного дня!", schedule);
+        return String.format("Военным доброе утро☀️☀️☀️\nОстальным сладких снов!\n%s\n Продуктивного дня!", schedule);
     }
 
     private String buildHolidaySchedule(String schedule) {
-        return String.format("Доброе утро☀\uFE0F☀\uFE0F☀\uFE0F!\n%sПродуктивного дня! \nКста завтра выходные, сегодня по пивку??\uD83D\uDE0F" , schedule);
+        return String.format("Доброе утро☀️☀️☀️!\n%sПродуктивного дня! \nКста завтра выходные, сегодня по пивку??\uD83D\uDE0F" , schedule);
     }
 
     private String buildSaturdaySchedule(String schedule) {
-        return String.format("Доброе утро☀\uFE0F☀\uFE0F☀\uFE0F\nСегодня фигня, чисто развеяться \n%sПродуктивного дня!\uD83C\uDFD6\uFE0F\nСегодня опять по пивку??\uD83D\uDE0F" , schedule);
+        return String.format("Доброе утро☀️☀️☀️\nСегодня фигня, чисто развеяться \n%sПродуктивного дня!\uD83C\uDFD6\uFE0F\nСегодня опять по пивку??\uD83D\uDE0F" , schedule);
     }
 }
