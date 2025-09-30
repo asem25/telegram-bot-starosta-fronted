@@ -32,7 +32,7 @@ public class EveryDayScheduleCronService {
                     }
 
                     for (UserDTO student : students) {
-                        if (student.getTelegramId() != null & student.getUsername().equalsIgnoreCase("asem250604")) {
+                        if (student.getTelegramId() != null) {
 
                                 scheduleService.getForToday(student.getGroupName())
                                         .thenCompose(schedule -> {
