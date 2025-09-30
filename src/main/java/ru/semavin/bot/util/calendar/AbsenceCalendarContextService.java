@@ -7,7 +7,6 @@ import ru.semavin.bot.service.MessageSenderService;
 import ru.semavin.bot.service.notification.SkipNotificationService;
 
 import java.time.LocalDate;
-import java.time.format.DateTimeFormatter;
 import java.util.Optional;
 import java.util.concurrent.ConcurrentHashMap;
 
@@ -19,13 +18,6 @@ public class AbsenceCalendarContextService {
     private final SkipNotificationService skipNotificationService;
     private final MessageSenderService messageSenderService;
 
-    public void saveDates(Long userId, LocalDate from, LocalDate to) {
-        draftByUser.putIfAbsent(userId, new SkipNotificationDTO());
-        SkipNotificationDTO dto = draftByUser.get(userId);
-        dto.setFromDate(from);
-        dto.setToDate(to);
-    }
-
     public void saveDescription(Long userId, String description) {
         SkipNotificationDTO dto = draftByUser.get(userId);
         if (dto != null) {
@@ -34,8 +26,8 @@ public class AbsenceCalendarContextService {
             messageSenderService.sendTextMessage(userId, "✅ Староста уведомлен!");
             clear(userId);
         }
-
     }
+
     public void setUserContext(Long userId, String username, String groupName) {
         draftByUser.putIfAbsent(userId, new SkipNotificationDTO());
         SkipNotificationDTO dto = draftByUser.get(userId);
