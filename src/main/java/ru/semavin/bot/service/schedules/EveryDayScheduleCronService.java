@@ -10,7 +10,9 @@ import ru.semavin.bot.service.MessageSenderService;
 import ru.semavin.bot.service.groups.GroupService;
 import ru.semavin.bot.util.KeyboardUtils;
 
+import java.time.DayOfWeek;
 import java.time.LocalDate;
+import java.time.ZoneId;
 import java.util.List;
 
 @Service
@@ -24,6 +26,10 @@ public class EveryDayScheduleCronService {
 
     @Scheduled(cron = "0 0 7 * * MON-SAT", zone = "Europe/Moscow")
     public void sendScheduleForToday() {
+        ZoneId ZONE = ZoneId.of("Europe/Moscow");
+
+        LocalDate today = LocalDate.now(ZONE);
+        DayOfWeek dow = today.getDayOfWeek();
         groupService.getStudentList(defaultGroup)
                 .thenAccept((List<UserDTO> students) -> {
                     if (students == null || students.isEmpty()) {
@@ -35,40 +41,18 @@ public class EveryDayScheduleCronService {
                         if (student.getTelegramId() != null) {
 
                                 scheduleService.getForToday(student.getGroupName())
-                                        .thenCompose(schedule -> {
-                                                    if (LocalDate.now().getDayOfWeek() == DayOfWeek.THURSDAY) {
-                                                        return messageSenderService.sendButtonMessage(
-                                                                SendMessage.builder()
-                                                                        .chatId(student.getTelegramId())
-                                                                        .text(buildMilitarySchedule(schedule))
-                                                                        .replyMarkup(KeyboardUtils.createMarkupWithTomorrow(LocalDate.now()))
-                                                                        .build());
-
-                                                    } else if (LocalDate.now().getDayOfWeek() == DayOfWeek.FRIDAY) {
-                                                        return messageSenderService.sendButtonMessage(
-                                                                SendMessage.builder()
-                                                                        .chatId(student.getTelegramId())
-                                                                        .text(buildHolidaySchedule(schedule))
-                                                                        .replyMarkup(KeyboardUtils.createMarkupWithTomorrow(LocalDate.now()))
-                                                                        .build());
-
-                                                    } else if (LocalDate.now().getDayOfWeek() == DayOfWeek.SATURDAY) {
-                                                        return messageSenderService.sendButtonMessage(
-                                                                SendMessage.builder()
-                                                                        .chatId(student.getTelegramId())
-                                                                        .text(buildSaturdaySchedule(schedule))
-                                                                        .replyMarkup(KeyboardUtils.createMarkupWithTomorrow(LocalDate.now()))
-                                                                        .build());
-                                                    }
-                                                    return messageSenderService.sendButtonMessage(
-                                                            SendMessage.builder()
-                                                                    .chatId(student.getTelegramId())
-                                                                    .text(buildSchedule(schedule))
-                                                                    .replyMarkup(KeyboardUtils.createMarkupWithTomorrow(LocalDate.now()))
-                                                                    .build());
-
-                                                }
-                                        )
+                                        .thenCompose(schedule -> messageSenderService.sendButtonMessage(
+                                                    SendMessage.builder()
+                                                            .chatId(student.getTelegramId())
+                                                            .text(switch (dow) {
+                                                                case THURSDAY -> buildMilitarySchedule(schedule);
+                                                                case FRIDAY   -> buildHolidaySchedule(schedule);
+                                                                case SATURDAY -> buildSaturdaySchedule(schedule);
+                                                                default       -> buildSchedule(schedule);
+                                                            })
+                                                            .replyMarkup(KeyboardUtils.createMarkupWithTomorrow(today))
+                                                            .build()
+                                            ))
                                         .exceptionally(e -> {
                                             log.error("Ошибка при получении расписания на сегодня: {}", e.getMessage());
                                             return null;
