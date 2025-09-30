@@ -5,30 +5,27 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
 import org.telegram.telegrambots.longpolling.interfaces.LongPollingUpdateConsumer;
 import org.telegram.telegrambots.meta.api.methods.send.SendMessage;
-import org.telegram.telegrambots.meta.api.objects.*;
+import org.telegram.telegrambots.meta.api.objects.CallbackQuery;
+import org.telegram.telegrambots.meta.api.objects.Update;
 import org.telegram.telegrambots.meta.api.objects.message.MaybeInaccessibleMessage;
 import org.telegram.telegrambots.meta.api.objects.message.Message;
 import org.telegram.telegrambots.meta.api.objects.replykeyboard.InlineKeyboardMarkup;
 import ru.semavin.bot.botcommands.handlers.*;
 import ru.semavin.bot.enums.RegistrationStep;
-import ru.semavin.bot.service.*;
+import ru.semavin.bot.service.MessageSenderService;
 import ru.semavin.bot.service.deadline.DeadLineCreationService;
 import ru.semavin.bot.service.deadline.DeadlineService;
 import ru.semavin.bot.service.schedules.ScheduleChangeEditingContextService;
-import ru.semavin.bot.service.schedules.ScheduleService;
 import ru.semavin.bot.service.users.profile.ProfileEditingService;
 import ru.semavin.bot.service.users.register.RegistrationStateService;
 import ru.semavin.bot.service.users.register.UserRegistrationService;
-import ru.semavin.bot.service.users.UserService;
-import ru.semavin.bot.util.calendar.AbsenceCalendarContextService;
-import ru.semavin.bot.util.calendar.CalendarUtils;
+import ru.semavin.bot.service.users.starosta.StarostaChangeServiceState;
 import ru.semavin.bot.util.KeyboardUtils;
+import ru.semavin.bot.util.calendar.AbsenceCalendarContextService;
 
-import java.time.DayOfWeek;
-import java.time.LocalDate;
-import java.time.YearMonth;
-import java.time.format.DateTimeFormatter;
-import java.util.*;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.UUID;
 import java.util.concurrent.ExecutorService;
 
 @Slf4j
@@ -52,6 +49,7 @@ public class StarostaConsumer implements LongPollingUpdateConsumer {
     private final SkipCallBackHandler skipCallBackHandler;
     private final ScheduleChangeCallBackHandler scheduleChangeCallBackHandler;
     private final ScheduleChangeEditingContextService scheduleChangeEditingContextService;
+    private final StarostaChangeServiceState state;
 
     @Override
     public void consume(List<Update> updates) {
@@ -101,7 +99,6 @@ public class StarostaConsumer implements LongPollingUpdateConsumer {
     private void handleMessage(Message message) {
         String text = message.getText();
         Long chatId = message.getChatId();
-        org.telegram.telegrambots.meta.api.objects.User from = message.getFrom();
 
         log.info("Message received: {}", text);
 
@@ -133,8 +130,7 @@ public class StarostaConsumer implements LongPollingUpdateConsumer {
                                 .chatId(chatId.toString())
                                 .text(updatedText)
                                 .replyMarkup(editMarkup)
-                                .build()
-                ).thenAccept(response -> {
+                                .build()).thenAccept(response -> {
                     // Можно логировать, что обновление отправлено,
                     // либо сохранить идентификатор нового сообщения, если потребуется дальнейшая логика.
                     log.info("Отправлено новое сообщение с обновлёнными данными");
@@ -143,6 +139,7 @@ public class StarostaConsumer implements LongPollingUpdateConsumer {
                     return null;
                 });
             });
+            state.clearState(chatId);
             return;
         }
         botCommand.handle(message);
@@ -211,7 +208,6 @@ public class StarostaConsumer implements LongPollingUpdateConsumer {
             messageSenderService.editMessageText(
                     KeyboardUtils.createEditMessage(chatId.toString(), messageId, text, null)
             );
-            return;
         }
 
 

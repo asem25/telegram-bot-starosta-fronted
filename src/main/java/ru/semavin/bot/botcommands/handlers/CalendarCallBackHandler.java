@@ -9,6 +9,7 @@ import org.telegram.telegrambots.meta.api.objects.replykeyboard.InlineKeyboardMa
 import ru.semavin.bot.service.MessageSenderService;
 import ru.semavin.bot.service.schedules.ScheduleService;
 import ru.semavin.bot.service.users.UserService;
+import ru.semavin.bot.service.users.starosta.StarostaChangeServiceState;
 import ru.semavin.bot.util.KeyboardUtils;
 import ru.semavin.bot.util.calendar.CalendarUtils;
 
@@ -23,6 +24,7 @@ public class CalendarCallBackHandler {
     private final MessageSenderService messageSenderService;
     private final UserService userService;
     private final ScheduleService scheduleService;
+    private final StarostaChangeServiceState state;
 
     public void handleCalendarCallback(CallbackQuery callbackQuery) {
         String data = callbackQuery.getData();
@@ -36,13 +38,23 @@ public class CalendarCallBackHandler {
             int year = Integer.parseInt(parts[2]);
             int month = Integer.parseInt(parts[3]);
 
-            InlineKeyboardMarkup calendar = CalendarUtils.buildCalendarKeyboard(year, month);
-            messageSenderService.editCalendarMarkup(chatId, messageId, calendar)
-                    .exceptionally(e -> {
-                        log.error("Ошибка при навигации calendar: {}", e.getMessage());
-                        return null;
-                    });
-            return;
+            if (state.getState(chatId)) {
+                InlineKeyboardMarkup calendar = CalendarUtils.buildCalendarForChange(year, month);
+                messageSenderService.editCalendarMarkup(chatId, messageId, calendar)
+                        .exceptionally(e -> {
+                            log.error("Ошибка при навигации calendar: {}", e.getMessage());
+                            return null;
+                        });
+                return;
+            }else {
+                InlineKeyboardMarkup calendar = CalendarUtils.buildCalendarKeyboard(year, month);
+                messageSenderService.editCalendarMarkup(chatId, messageId, calendar)
+                        .exceptionally(e -> {
+                            log.error("Ошибка при навигации calendar: {}", e.getMessage());
+                            return null;
+                        });
+                return;
+            }
         }
 
         // Выбор даты для расписания
@@ -92,7 +104,6 @@ public class CalendarCallBackHandler {
                 return null;
             });
 
-            return;
         }
 
     }
