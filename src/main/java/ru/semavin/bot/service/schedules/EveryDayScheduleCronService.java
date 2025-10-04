@@ -40,27 +40,33 @@ public class EveryDayScheduleCronService {
                     for (UserDTO student : students) {
                         if (student.getTelegramId() != null) {
 
-                                scheduleService.getForToday(student.getGroupName())
-                                        .thenCompose(schedule -> messageSenderService.sendButtonMessage(
-                                                    SendMessage.builder()
-                                                            .chatId(student.getTelegramId())
-                                                            .text(switch (dow) {
-                                                                case THURSDAY -> buildMilitarySchedule(schedule);
-                                                                case FRIDAY   -> buildHolidaySchedule(schedule);
-                                                                case SATURDAY -> buildSaturdaySchedule(schedule);
-                                                                default       -> buildSchedule(schedule);
-                                                            })
-                                                            .replyMarkup(KeyboardUtils.createMarkupWithTomorrow(today))
-                                                            .build()
-                                            ))
-                                        .exceptionally(e -> {
-                                            log.error("Ошибка при получении расписания на сегодня: {}", e.getMessage());
-                                            return null;
-                                        })
-                                        .thenApply(messageId -> {
-                                            log.debug("Команда 'Сегодня' выполнена для пользователя {}", student.getTelegramId());
-                                            return null;
-                                        });
+                            scheduleService.getForToday(student.getGroupName())
+                                    .thenCompose(schedule -> {
+                                                if (dow == DayOfWeek.SATURDAY && schedule.contains("занятий нет")){
+                                                    return messageSenderService.sendMessage(student.getTelegramId(),
+                                                            "Доброе утро☀️☀️☀️! \n\nНа этой недели пары все\uD83E\uDD73\uD83E\uDD73\n\nХороший выходных!");
+                                                }
+                                                    return messageSenderService.sendButtonMessage(
+                                                            SendMessage.builder()
+                                                                    .chatId(student.getTelegramId())
+                                                                    .text(switch (dow) {
+                                                                        case THURSDAY -> buildMilitarySchedule(schedule);
+                                                                        case FRIDAY -> buildHolidaySchedule(schedule);
+                                                                        case SATURDAY -> buildSaturdaySchedule(schedule);
+                                                                        default -> buildSchedule(schedule);
+                                                                    })
+                                                                    .replyMarkup(KeyboardUtils.createMarkupWithTomorrow(today))
+                                                                    .build());
+                                            }
+                                    )
+                                    .exceptionally(e -> {
+                                        log.error("Ошибка при получении расписания на сегодня: {}", e.getMessage());
+                                        return null;
+                                    })
+                                    .thenApply(messageId -> {
+                                        log.debug("Команда 'Сегодня' выполнена для пользователя {}", student.getTelegramId());
+                                        return null;
+                                    });
 
                         }
                     }
@@ -81,10 +87,10 @@ public class EveryDayScheduleCronService {
     }
 
     private String buildHolidaySchedule(String schedule) {
-        return String.format("Доброе утро☀️☀️☀️!\n%sПродуктивного дня! \nКста завтра выходные, сегодня по пивку??\uD83D\uDE0F" , schedule);
+        return String.format("Доброе утро☀️☀️☀️!\n%sПродуктивного дня! \nКста завтра выходные, сегодня по пивку??\uD83D\uDE0F", schedule);
     }
 
     private String buildSaturdaySchedule(String schedule) {
-        return String.format("Доброе утро☀️☀️☀️\nСегодня фигня, чисто развеяться \n%sПродуктивного дня!\uD83C\uDFD6\uFE0F\nСегодня опять по пивку??\uD83D\uDE0F" , schedule);
+        return String.format("Доброе утро☀️☀️☀️\nСегодня фигня, чисто развеяться \n%sПродуктивного дня!\uD83C\uDFD6\uFE0F\nСегодня опять по пивку??\uD83D\uDE0F", schedule);
     }
 }
