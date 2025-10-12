@@ -3,6 +3,7 @@ package ru.semavin.bot.service.schedules;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
+import ru.semavin.bot.dto.ScheduleChangeForEveryDayCheckDTO;
 import ru.semavin.bot.dto.ScheduleDTO;
 
 import java.time.LocalDate;
@@ -29,26 +30,6 @@ public class ScheduleService {
                 });
     }
 
-    public CompletableFuture<String> getForCurrentWeek(String groupName) {
-        String formattedDate = LocalDate.now().format(formatter);
-        return scheduleApiService.getForCurrentWeek(groupName)
-                .thenApply(schedule -> buildScheduleTextForWeek(schedule, formattedDate, formattedDate))
-                .exceptionally(e -> {
-                    log.error("Ошибка при получении текста расписания на неделю {}: {}", formattedDate, e.getMessage());
-                    return "⚠ Ошибка при получении расписания на неделю от " + formattedDate;
-                });
-    }
-
-    public CompletableFuture<String> getForSomeWeek(String groupName, int week) {
-        String formattedDate = LocalDate.now().format(formatter);
-        return scheduleApiService.getForSomeWeek(groupName, week)
-                .thenApply(schedule -> buildScheduleTextForWeek(schedule, formattedDate, formattedDate))
-                .exceptionally(e -> {
-                    log.error("Ошибка при получении текста расписания на неделю {}: {}", formattedDate, e.getMessage());
-                    return "⚠ Ошибка при получении расписания на неделю от " + formattedDate;
-                });
-    }
-
     public CompletableFuture<ScheduleDTO> findLesson(String groupName, LocalDate date, String startTime){
         String formattedDate = date.format(formatter);
         return scheduleApiService.findLesson(groupName, formattedDate, startTime);
@@ -62,6 +43,11 @@ public class ScheduleService {
                     log.error("Ошибка при получении текста расписания на дату {}: {}", formattedDate, e.getMessage());
                     return "⚠ Ошибка при получении расписания на дату " + formattedDate;
                 });
+    }
+
+    public CompletableFuture<ScheduleChangeForEveryDayCheckDTO> getChangeForDay(LocalDate date, String groupName) {
+        String formattedDate = date.format(formatter);
+        return scheduleApiService.getScheduleChange(formattedDate, groupName);
     }
 
     public CompletableFuture<List<ScheduleDTO>> getScheduleSomeDateWithOutText(String groupName, LocalDate date) {
@@ -96,22 +82,5 @@ public class ScheduleService {
             case "LAB" -> "ЛР";
             default -> lessonType;
         };
-    }
-    private String buildScheduleTextForWeek(List<ScheduleDTO> schedule,
-                                            String localDateStartWeek,
-                                            String localDateEndWeek) {
-
-        StringBuilder sb = new StringBuilder("📅 Расписание на неделю: " + localDateStartWeek + " - " + localDateEndWeek + " :\n\n");
-        for (ScheduleDTO dto : schedule) {
-            sb.append(String.format("%s \n📘 %s (%s)\n%s – %s | Ауд: %s\n👨‍🏫 %s\n\n",
-                    dto.getLessonDate().getDayOfWeek(),
-                    dto.getSubjectName(),
-                    dto.getLessonType(),
-                    dto.getStartTime(),
-                    dto.getEndTime(),
-                    dto.getClassroom(),
-                    dto.getTeacherName()));
-        }
-        return sb.toString();
     }
 }

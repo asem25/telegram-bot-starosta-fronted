@@ -8,13 +8,12 @@ import org.springframework.cache.annotation.Cacheable;
 import org.springframework.cache.annotation.Caching;
 import org.springframework.core.ParameterizedTypeReference;
 import org.springframework.http.HttpMethod;
-import org.springframework.http.RequestEntity;
 import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestClient;
 import ru.semavin.bot.dto.ScheduleChangeDTO;
+import ru.semavin.bot.dto.ScheduleChangeForEveryDayCheckDTO;
 import ru.semavin.bot.dto.ScheduleDTO;
 
-import java.net.URI;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutorService;
@@ -109,21 +108,26 @@ public class ScheduleApiService {
     })
     public CompletableFuture<String> deleteScheduleChange(String groupName, ScheduleChangeDTO dto) {
         String url = urlApi + "/schedule/change?groupName=" + groupName;
-        return CompletableFuture.supplyAsync(() -> {
-            return restClient.method(HttpMethod.DELETE)
-                    .uri(url)
-                    .body((dto))
-                    .retrieve()
-                    .body(String.class);
-        }, executorService);
+        return CompletableFuture.supplyAsync(() -> restClient.method(HttpMethod.DELETE)
+                .uri(url)
+                .body((dto))
+                .retrieve()
+                .body(String.class), executorService);
     }
+
+    public CompletableFuture<ScheduleChangeForEveryDayCheckDTO> getScheduleChange(String date, String groupName) {
+        String url = urlApi + "/schedule/change?groupName=" + groupName + "&date=" + date;
+        return CompletableFuture.supplyAsync(() -> restClient.method(HttpMethod.GET)
+                .uri(url)
+                .retrieve()
+                .body(ScheduleChangeForEveryDayCheckDTO.class), executorService);
+    }
+
     public CompletableFuture<ScheduleDTO> findLesson(String groupName, String date, String startTime) {
         String url = urlApi + "/schedule/lesson?groupName=" + groupName + "&date=" + date + "&startTime=" + startTime;
-        return CompletableFuture.supplyAsync(() -> {
-            return restClient.method(HttpMethod.GET)
-                    .uri(url)
-                    .retrieve()
-                    .body(ScheduleDTO.class);
-        }, executorService);
+        return CompletableFuture.supplyAsync(() -> restClient.method(HttpMethod.GET)
+                .uri(url)
+                .retrieve()
+                .body(ScheduleDTO.class), executorService);
     }
 }
