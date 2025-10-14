@@ -152,8 +152,14 @@ public class KeyboardUtils {
                 mainBookvs.append(subJectMain[i].substring(0, 1).toUpperCase());
             }
             InlineKeyboardRow row = new InlineKeyboardRow();
-            String text = String.format("%s : %s–%s %s", teacher[2],
-                    lesson.getStartTime(), lesson.getEndTime(), mainBookvs);
+            String text;
+            if (teacher.length > 2) {
+                text = String.format("%s : %s–%s %s", teacher[2],
+                        lesson.getStartTime(), lesson.getEndTime(), mainBookvs);
+            }else {
+                text = String.format("%s–%s %s",
+                        lesson.getStartTime(), lesson.getEndTime(), mainBookvs);
+            }
             String callbackData = "LESSON_SELECT_" + lesson.getGroupName() + "|" + lesson.getLessonDate() + "|" + lesson.getStartTime();
             row.add(InlineKeyboardButton.builder().text(text).callbackData(callbackData).build());
             rows.add(row);

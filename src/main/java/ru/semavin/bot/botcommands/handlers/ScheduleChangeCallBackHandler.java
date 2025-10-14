@@ -62,6 +62,7 @@ public class ScheduleChangeCallBackHandler {
                             );
                         })
                         .exceptionally(ex -> {
+                            log.error("Ошибка при получении расписания {}", ex.getMessage());
                             messageSenderService.sendTextMessage(chatId, "Ошибка при получении расписания на выбранную дату.");
                             return null;
                         });
