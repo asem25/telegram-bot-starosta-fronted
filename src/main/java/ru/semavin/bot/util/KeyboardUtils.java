@@ -145,8 +145,15 @@ public class KeyboardUtils {
     public static InlineKeyboardMarkup createLessonsMarkup(List<ScheduleDTO> lessons) {
         List<InlineKeyboardRow> rows = new ArrayList<>();
         for (ScheduleDTO lesson : lessons) {
+            var teacher = lesson.getTeacherName().split(" ");
+            var subJectMain = lesson.getSubjectName().split(" ");
+            var mainBookvs = new StringBuilder();
+            for (int i = 0; i < subJectMain.length; i++) {
+                mainBookvs.append(subJectMain[i].substring(0, 1).toUpperCase());
+            }
             InlineKeyboardRow row = new InlineKeyboardRow();
-            String text = String.format("%s %s–%s %s", lesson.getLessonDate(), lesson.getStartTime(), lesson.getEndTime(), lesson.getSubjectName());
+            String text = String.format("%s : %s–%s %s", teacher[2],
+                    lesson.getStartTime(), lesson.getEndTime(), mainBookvs);
             String callbackData = "LESSON_SELECT_" + lesson.getGroupName() + "|" + lesson.getLessonDate() + "|" + lesson.getStartTime();
             row.add(InlineKeyboardButton.builder().text(text).callbackData(callbackData).build());
             rows.add(row);
@@ -173,14 +180,14 @@ public class KeyboardUtils {
         List<InlineKeyboardRow> rows = new ArrayList<>();
 
         InlineKeyboardRow row1 = new InlineKeyboardRow();
-        row1.add(InlineKeyboardButton.builder().text("Редактировать дату").callbackData("UPDATE_SCHEDULE_CHANGE_FIELD_newLessonDate").build());
-        row1.add(InlineKeyboardButton.builder().text("Редактировать время нач").callbackData("UPDATE_SCHEDULE_CHANGE_FIELD_newStartTime").build());
-        row1.add(InlineKeyboardButton.builder().text("Редактировать время конц").callbackData("UPDATE_SCHEDULE_CHANGE_FIELD_newEndTime").build());
+        row1.add(InlineKeyboardButton.builder().text("Дата").callbackData("UPDATE_SCHEDULE_CHANGE_FIELD_newLessonDate").build());
+        row1.add(InlineKeyboardButton.builder().text("Нач").callbackData("UPDATE_SCHEDULE_CHANGE_FIELD_newStartTime").build());
+        row1.add(InlineKeyboardButton.builder().text("Конец").callbackData("UPDATE_SCHEDULE_CHANGE_FIELD_newEndTime").build());
         rows.add(row1);
 
         InlineKeyboardRow row2 = new InlineKeyboardRow();
-        row2.add(InlineKeyboardButton.builder().text("Редактировать аудиторию").callbackData("UPDATE_SCHEDULE_CHANGE_FIELD_classroom").build());
-        row2.add(InlineKeyboardButton.builder().text("Редактировать комментарий").callbackData("UPDATE_SCHEDULE_CHANGE_FIELD_description").build());
+        row2.add(InlineKeyboardButton.builder().text("Аудиторию").callbackData("UPDATE_SCHEDULE_CHANGE_FIELD_classroom").build());
+        row2.add(InlineKeyboardButton.builder().text("Комментарий").callbackData("UPDATE_SCHEDULE_CHANGE_FIELD_description").build());
         rows.add(row2);
 
         InlineKeyboardRow row3 = new InlineKeyboardRow();
