@@ -5,6 +5,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 import ru.semavin.bot.dto.ScheduleChangeForEveryDayCheckDTO;
+import ru.semavin.bot.dto.UserDTO;
 import ru.semavin.bot.service.MessageSenderService;
 import ru.semavin.bot.service.groups.GroupService;
 
@@ -23,35 +24,53 @@ public class EveryDayScheduleCheckChangesCronService {
     private final MessageSenderService messageSenderService;
     private final GroupService groupService;
 
-    @Scheduled(cron = "0 0 21 * * MON-SAT", zone = "Europe/Moscow")
+//    @Scheduled(cron = "0 0 21 * * MON-SAT", zone = "Europe/Moscow")
+    @Scheduled(fixedRate = 60000)
     public void checkChanges() {
         ZoneId ZONE = ZoneId.of("Europe/Moscow");
 
-
         LocalDate tomorrow = LocalDate.now(ZONE).plusDays(1);
 
-        scheduleService.getChangeForDay(tomorrow, defaultGroup)
-                .thenAccept(objChanges -> {
-                    var scheduleChangeEntityList = objChanges.getScheduleChangeEntityList();
-                    if (scheduleChangeEntityList.isEmpty()) {
-                        log.info("Не найдено изменений расписания на {}", tomorrow);
-                        return;
-                    }
-                    log.info("Найдены изменения в расписание на {}", tomorrow);
-                    groupService.getStudentList(defaultGroup)
-                            .thenAccept(students -> {
-                                if (students == null || students.isEmpty()) {
-                                    log.warn("Для группы {} не найдено студентов – уведомление не отправлено", defaultGroup);
-                                    return;
-                                }
-
-                                students.forEach(student -> messageSenderService
-                                                .sendTextMessage(student.getTelegramId(),
-                                                        buildChangeForTomorrow(scheduleChangeEntityList,
-                                                                tomorrow))
-                                        );
-                            });
+        var schdListFutures = scheduleService.getChangeForDay(tomorrow, defaultGroup)
+                .exceptionally(ex -> {
+                    log.error("Ошибка при получении изменений расписания {}", ex.getMessage(), ex);
+                    return null;
                 });
+
+        var stdListFutures = groupService.getStudentList(defaultGroup)
+                .exceptionally(ex -> {
+                    log.error("Ошибка при получении студентов группы {}", ex.getMessage(), ex);
+                    return null;
+                });
+
+        var schdList = schdListFutures.join();
+        var stdList = stdListFutures.join();
+
+        if (schdList.getScheduleChangeEntityList().isEmpty()) {
+            log.info("Не найдено изменений расписания на {}", tomorrow);
+            return;
+        }
+
+        log.info("Найдены изменения в расписание на {}", tomorrow);
+
+        processChangesSchedule(stdList, schdList.getScheduleChangeEntityList(),
+                tomorrow);
+    }
+
+    private void processChangesSchedule(List<UserDTO> stdList,
+                                        List<ScheduleChangeForEveryDayCheckDTO.ScheduleChangeForFrontDTO>
+                                                scheduleChangeEntityList,
+                                        LocalDate tomorrow) {
+        if (stdList == null || stdList.isEmpty()) {
+            log.warn("Для группы {} не найдено студентов – уведомление не отправлено", defaultGroup);
+            return;
+        }
+
+        stdList.forEach(student -> messageSenderService
+                .sendTextMessage(student.getTelegramId(),
+                        buildChangeForTomorrow(scheduleChangeEntityList,
+                                tomorrow))
+        );
     }
 
     private String buildChangeForTomorrow(
