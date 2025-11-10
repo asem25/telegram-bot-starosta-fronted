@@ -24,8 +24,7 @@ public class EveryDayScheduleCheckChangesCronService {
     private final MessageSenderService messageSenderService;
     private final GroupService groupService;
 
-//    @Scheduled(cron = "0 0 21 * * MON-SAT", zone = "Europe/Moscow")
-    @Scheduled(fixedRate = 60000)
+    @Scheduled(cron = "0 0 21 * * MON-SAT", zone = "Europe/Moscow")
     public void checkChanges() {
         ZoneId ZONE = ZoneId.of("Europe/Moscow");
 
