@@ -14,6 +14,7 @@ import java.time.DayOfWeek;
 import java.time.LocalDate;
 import java.time.ZoneId;
 import java.util.List;
+import java.util.Objects;
 
 @Service
 @Slf4j
@@ -26,56 +27,62 @@ public class EveryDayScheduleCronService {
 
     @Scheduled(cron = "0 0 7 * * MON-SAT", zone = "Europe/Moscow")
     public void sendScheduleForToday() {
+        var stlistFutures = groupService.getStudentList(defaultGroup)
+                .exceptionally(ex -> {
+                    log.error("Ошибка при получении студентов группы {}", ex.getMessage(), ex);
+                    return null;
+                });
+
+        var schdListFutures = scheduleService.getForToday(defaultGroup)
+                .exceptionally(ex -> {
+                    log.error("Ошибка при получении расписания {}", ex.getMessage(), ex);
+                    return null;
+                });
+
+        var stlist = stlistFutures.join();
+        var schdList = schdListFutures.join();
+
+        if (stlist == null || stlist.isEmpty()) {
+            log.warn("Для группы {} не найдено студентов – уведомление не отправлено", defaultGroup);
+            return;
+        }
+
+        sendDailyMessage(schdList, stlist);
+    }
+
+    private void sendDailyMessage(String schdList, List<UserDTO> stlist) {
         ZoneId ZONE = ZoneId.of("Europe/Moscow");
 
         LocalDate today = LocalDate.now(ZONE);
         DayOfWeek dow = today.getDayOfWeek();
-        groupService.getStudentList(defaultGroup)
-                .thenAccept((List<UserDTO> students) -> {
-                    if (students == null || students.isEmpty()) {
-                        log.warn("Для группы {} не найдено студентов – уведомление не отправлено", defaultGroup);
-                        return;
-                    }
+        for (UserDTO student : stlist) {
+            if (!Objects.equals(student.getUsername(), "asem250604"))
+                continue;
+            if (dow == DayOfWeek.SATURDAY && schdList.contains("занятий нет")) {
+                messageSenderService.sendMessage(student.getTelegramId(),
+                        "Доброе утро☀️☀️☀️! \n\nНа этой недели пары все\uD83E\uDD73\uD83E\uDD73\n\nХороших выходных!");
+                continue;
+            }
+            messageSenderService.sendButtonMessage(buildSendMessage(
+                    student.getTelegramId(),
+                    schdList,
+                    today
+            ));
+        }
+    }
 
-                    for (UserDTO student : students) {
-                        if (student.getTelegramId() != null) {
-
-                            scheduleService.getForToday(student.getGroupName())
-                                    .thenCompose(schedule -> {
-                                                if (dow == DayOfWeek.SATURDAY && schedule.contains("занятий нет")){
-                                                    return messageSenderService.sendMessage(student.getTelegramId(),
-                                                            "Доброе утро☀️☀️☀️! \n\nНа этой недели пары все\uD83E\uDD73\uD83E\uDD73\n\nХороший выходных!");
-                                                }
-                                                    return messageSenderService.sendButtonMessage(
-                                                            SendMessage.builder()
-                                                                    .chatId(student.getTelegramId())
-                                                                    .text(switch (dow) {
-                                                                        case THURSDAY -> buildMilitarySchedule(schedule);
-                                                                        case FRIDAY -> buildHolidaySchedule(schedule);
-                                                                        case SATURDAY -> buildSaturdaySchedule(schedule);
-                                                                        default -> buildSchedule(schedule);
-                                                                    })
-                                                                    .replyMarkup(KeyboardUtils.createMarkupWithTomorrow(today))
-                                                                    .build());
-                                            }
-                                    )
-                                    .exceptionally(e -> {
-                                        log.error("Ошибка при получении расписания на сегодня: {}", e.getMessage());
-                                        return null;
-                                    })
-                                    .thenApply(messageId -> {
-                                        log.debug("Команда 'Сегодня' выполнена для пользователя {}", student.getTelegramId());
-                                        return null;
-                                    });
-
-                        }
-                    }
-                    log.debug("Расписание отправлено студентам группы {}", defaultGroup);
+    private SendMessage buildSendMessage(Long telegramId, String schdList, LocalDate today) {
+        var dow = today.getDayOfWeek();
+        return SendMessage.builder()
+                .chatId(telegramId)
+                .text(switch (dow) {
+                    case THURSDAY -> buildMilitarySchedule(schdList);
+                    case FRIDAY -> buildHolidaySchedule(schdList);
+                    case SATURDAY -> buildSaturdaySchedule(schdList);
+                    default -> buildSchedule(schdList);
                 })
-                .exceptionally(ex -> {
-                    log.error("Ошибка при оповещении студентов: {}", ex.getMessage());
-                    return null;
-                });
+                .replyMarkup(KeyboardUtils.createMarkupWithTomorrow(today))
+                .build();
     }
 
     private String buildSchedule(String schedule) {
