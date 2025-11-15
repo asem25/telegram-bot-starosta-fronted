@@ -27,7 +27,7 @@ public class ProfileEditingService {
             if (userDTO.getRole().equalsIgnoreCase("TEACHER")) {
                 editProfileStateService.setStep(chatId, EditStep.ENTER_FIRSTNAME);
                 messageSenderService.sendTextMessage(chatId, "Введите новое имя (текущее: " + userDTO.getFirstName() + ")");
-            } else {
+            }else {
                 editProfileStateService.setStep(chatId, EditStep.ENTER_GROUP);
                 messageSenderService.sendTextMessage(chatId, "Введите новую группу(текущая: " + userDTO.getGroupName() + ")");
             }
@@ -92,14 +92,9 @@ public class ProfileEditingService {
         }).exceptionally(error -> {
             {
                 if (error.getCause() instanceof EntityNotFoundException) {
-                    messageSenderService.sendTextErrorMessage(chatId, String
-                            .format("Ошибка при обновлении данных: %s",
-                                    error.getCause().getMessage()),
-                            error);
-                } else {
-                    messageSenderService.sendTextErrorMessage(chatId,
-                            "Неизвестная ошибка при обновлении данных",
-                            error);
+                    messageSenderService.sendTextMessage(chatId, String.format("Ошибка при обновлении данных: %s", error.getCause().getMessage()));
+                }else {
+                    messageSenderService.sendTextMessage(chatId, "Неизвестная ошибка при обновлении данных");
                 }
                 log.error("Ошибка updateUser: ", error.getCause());
                 editProfileStateService.clear(chatId);
