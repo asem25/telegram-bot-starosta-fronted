@@ -29,12 +29,14 @@ public class EveryDayScheduleCronService {
     public void sendScheduleForToday() {
         var stlistFutures = groupService.getStudentList(defaultGroup)
                 .exceptionally(ex -> {
+                    messageSenderService.sendTextErrorMessage(ex);
                     log.error("Ошибка при получении студентов группы {}", ex.getMessage(), ex);
                     return null;
                 });
 
         var schdListFutures = scheduleService.getForToday(defaultGroup)
                 .exceptionally(ex -> {
+                    messageSenderService.sendTextErrorMessage(ex);
                     log.error("Ошибка при получении расписания {}", ex.getMessage(), ex);
                     return null;
                 });

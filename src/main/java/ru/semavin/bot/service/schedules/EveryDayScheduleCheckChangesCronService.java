@@ -32,12 +32,14 @@ public class EveryDayScheduleCheckChangesCronService {
 
         var schdListFutures = scheduleService.getChangeForDay(tomorrow, defaultGroup)
                 .exceptionally(ex -> {
+                    messageSenderService.sendTextErrorMessage(ex);
                     log.error("Ошибка при получении изменений расписания {}", ex.getMessage(), ex);
                     return null;
                 });
 
         var stdListFutures = groupService.getStudentList(defaultGroup)
                 .exceptionally(ex -> {
+                    messageSenderService.sendTextErrorMessage(ex);
                     log.error("Ошибка при получении студентов группы {}", ex.getMessage(), ex);
                     return null;
                 });
