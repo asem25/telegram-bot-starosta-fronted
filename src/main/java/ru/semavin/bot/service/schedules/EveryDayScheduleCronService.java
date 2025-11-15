@@ -10,11 +10,9 @@ import ru.semavin.bot.service.MessageSenderService;
 import ru.semavin.bot.service.groups.GroupService;
 import ru.semavin.bot.util.KeyboardUtils;
 
-import java.time.DayOfWeek;
 import java.time.LocalDate;
 import java.time.ZoneId;
 import java.util.List;
-import java.util.Objects;
 
 @Service
 @Slf4j
@@ -47,6 +45,12 @@ public class EveryDayScheduleCronService {
             return;
         }
 
+        if (schdList.contains("занятий нет")) {
+            log.info("Для группы {} не найдено пар - увдомление не отправлено", defaultGroup);
+            return;
+        }
+
+
         sendDailyMessage(schdList, stlist);
     }
 
@@ -54,15 +58,7 @@ public class EveryDayScheduleCronService {
         ZoneId ZONE = ZoneId.of("Europe/Moscow");
 
         LocalDate today = LocalDate.now(ZONE);
-        DayOfWeek dow = today.getDayOfWeek();
         for (UserDTO student : stlist) {
-            if (!Objects.equals(student.getUsername(), "asem250604"))
-                continue;
-            if (dow == DayOfWeek.SATURDAY && schdList.contains("занятий нет")) {
-                messageSenderService.sendMessage(student.getTelegramId(),
-                        "Доброе утро☀️☀️☀️! \n\nНа этой недели пары все\uD83E\uDD73\uD83E\uDD73\n\nХороших выходных!");
-                continue;
-            }
             messageSenderService.sendButtonMessage(buildSendMessage(
                     student.getTelegramId(),
                     schdList,
@@ -86,18 +82,23 @@ public class EveryDayScheduleCronService {
     }
 
     private String buildSchedule(String schedule) {
-        return String.format("Доброе утро!\uD83C\uDF04 Сегодня на повестке дня \uD83D\uDD56: \n\n %s Хорошего дня!☺\uFE0F", schedule);
+        return String.format("Доброе утро!\uD83C\uDF04" +
+                " Сегодня на повестке дня \uD83D\uDD56: \n\n %s Хорошего дня!☺\uFE0F", schedule);
     }
 
     private String buildMilitarySchedule(String schedule) {
-        return String.format("Военным доброе утро☀️☀️☀️\nОстальным сладких снов!\n%s\n Продуктивного дня!", schedule);
+        return String.format("Военным доброе утро☀️☀️☀️\n" +
+                "Остальным сладких снов!\n%s\n Продуктивного дня!", schedule);
     }
 
     private String buildHolidaySchedule(String schedule) {
-        return String.format("Доброе утро☀️☀️☀️!\n%sПродуктивного дня! \nКста завтра выходные, сегодня по пивку??\uD83D\uDE0F", schedule);
+        return String.format("Доброе утро☀️☀️☀️!\n" +
+                "%sПродуктивного дня! \nКста завтра выходные, сегодня по пивку??\uD83D\uDE0F", schedule);
     }
 
     private String buildSaturdaySchedule(String schedule) {
-        return String.format("Доброе утро☀️☀️☀️\nСегодня фигня, чисто развеяться \n%sПродуктивного дня!\uD83C\uDFD6\uFE0F\nСегодня опять по пивку??\uD83D\uDE0F", schedule);
+        return String.format("Доброе утро☀️☀️☀️\n" +
+                "Сегодня фигня, чисто развеяться \n%sПродуктивного дня!" +
+                "\uD83C\uDFD6\uFE0F\nСегодня опять по пивку??\uD83D\uDE0F", schedule);
     }
 }
