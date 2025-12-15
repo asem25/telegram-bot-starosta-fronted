@@ -52,13 +52,11 @@ public class ScheduleApiService {
     })
     public CompletableFuture<String> updateScheduleChange(String groupName, ScheduleChangeDTO dto) {
         String url = urlApi + "/schedule/change?groupName=" + groupName;
-        return CompletableFuture.supplyAsync(() -> {
-            return restClient.put()
-                    .uri(url)
-                    .body(dto)
-                    .retrieve()
-                    .body(String.class);
-        }, executorService);
+        return CompletableFuture.supplyAsync(() -> restClient.put()
+                .uri(url)
+                .body(dto)
+                .retrieve()
+                .body(String.class), executorService);
     }
 
     /**
