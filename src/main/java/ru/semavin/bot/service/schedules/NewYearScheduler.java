@@ -23,8 +23,7 @@ public class NewYearScheduler {
             Ну что, начнем отсчет еще одного года до выпуска?
             """;
 
-//    @Scheduled(cron = "0 0 7 01 01 *", zone = "Europe/Moscow")
-    @Scheduled(fixedDelay = 1000, zone = "Europe/Moscow")
+    @Scheduled(cron = "0 0 7 01 01 *", zone = "Europe/Moscow")
     public void updateDailySchedules() {
         var stlistFutures = groupService.getStudentList(defaultGroup)
                 .exceptionally(ex -> {
