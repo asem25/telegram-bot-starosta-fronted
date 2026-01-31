@@ -21,8 +21,8 @@ import java.util.concurrent.atomic.AtomicReference;
 @UtilityClass
 public class CalendarUtils {
 
-    private LocalDate MIN_DATE = LocalDate.of(2025, 9, 1);
-    private LocalDate MAX_DATE = LocalDate.of(2026, 1, 30);
+    private LocalDate MIN_DATE = LocalDate.of(2026, 2, 9);
+    private LocalDate MAX_DATE = LocalDate.of(2026, 6, 30);
 
     private static final AtomicReference<InlineKeyboardMarkup> cachedMonthsMarkup = new AtomicReference<>();
     private static final Map<Integer, InlineKeyboardMarkup> weekScheduleCache = new ConcurrentHashMap<>();
