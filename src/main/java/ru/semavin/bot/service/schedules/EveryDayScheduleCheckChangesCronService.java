@@ -42,6 +42,10 @@ public class EveryDayScheduleCheckChangesCronService {
                     return null;
                 });
 
+        if (schdListFutures.join() == null || stdListFutures.join() == null) {
+            log.info("Ошибка при ежедневной рассылке расписания");
+            return;
+        }
         var schdList = schdListFutures.join();
         var stdList = stdListFutures.join();
 
